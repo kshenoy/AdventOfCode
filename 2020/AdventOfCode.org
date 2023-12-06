@@ -1,0 +1,3036 @@
+#+TITLE: Advent Of Code 2020
+#+PROPERTY: header-args+ :var Input="" InputFromFile=1 Debug=0 Verbose=1 :tangle no :shebang "#!/usr/bin/env python3"
+
+#+begin_src python :noweb-ref utl-pretty-print :results none :exports none
+import pprint
+pp = pprint.PrettyPrinter(indent=2, width=120)
+#+end_src
+
+#+begin_src python :noweb-ref utl-parse-input :results none :exports none
+def ParseInput(postProcess=lambda x:x):
+    global Input, InputFromFile
+    lines = []
+
+    if InputFromFile:
+        fin = open(Input)
+        lines = [ line.strip('\n') for line in fin.readlines() ]
+        fin.close()
+    else:
+        lines = Input.strip('\n').split('\n')
+
+    return list(map(postProcess, lines))
+#+end_src
+
+* Day 3
+[[https://adventofcode.com/2020/day/3][Puzzle]], [[file:3_in.txt][Input]]
+
+#+name: day3_eg.in
+#+begin_example
+..##.......
+#...#...#..
+.#....#..#.
+..#.#...#.#
+.#...##..#.
+..#.##.....
+.#.#.#....#
+.#........#
+#.##...#...
+#...##....#
+.#..#...#.#
+#+end_example
+
+#+name: day3_utl
+#+begin_src python :results none
+<<utl-parse-input>>
+Lines = ParseInput()
+Tree = "#"
+
+def GetTerrain(x, y):
+    global Lines
+    x = x % len(Lines[y])
+    return Lines[y][x]
+
+def GetNumTreesInPath(slope):
+    global Lines
+    x = slope[0]
+    y = slope[1]
+    numTrees = 0
+
+    while y < len(Lines):
+        print("DEBUG: x=", x, ", y=", y, " : ", Lines[y], sep='') if Debug else None
+        if GetTerrain(x, y) == Tree:
+            numTrees += 1
+        x += slope[0]
+        y += slope[1]
+
+    return numTrees
+#+end_src
+
+** Part 1
+#+name: day3_p1_impl
+#+begin_src python
+<<day3_utl>>
+numTreesInPath = GetNumTreesInPath((3, 1))
+print("Number of Trees in path=", numTreesInPath, sep='') if Verbose else print(numTreesInPath)
+#+end_src
+
+#+call: day3_p1_impl(Input=day3_eg.in, InputFromFile=0)
+
+#+RESULTS:
+: Number of Trees in path=7
+
+#+call: day3_p1_impl(Input="3_in.txt")
+
+#+RESULTS:
+: Number of Trees in path=195
+
+** Part 2
+
+#+name: day3_p2_impl
+#+begin_src python
+<<day3_utl>>
+numTrees = 1
+for slope in [(1, 1), (3, 1), (5, 1), (7, 1), (1, 2)]:
+    numTrees *= GetNumTreesInPath(slope)
+
+print("Product of NumTrees=", numTrees, sep='') if Verbose else print(numTrees)
+#+end_src
+
+#+call: day3_p2_impl(Input=day3_eg.in, InputFromFile=0)
+
+#+RESULTS:
+: Product of NumTrees=336
+
+#+call: day3_p2_impl(Input="3_in.txt")
+
+#+RESULTS:
+: Product of NumTrees=3772314000
+
+* Day 4
+[[https://adventofcode.com/2020/day/4][Puzzle]], [[file:4_in.txt][Input]]
+
+#+name: day4_utl
+#+begin_src python :results none
+<<utl-parse-input>>
+def MakeRecords():
+    lines = []
+    stream = ""
+    for line in ParseInput():
+        if len(line) == 0:
+            lines.append(stream.strip())
+            stream = ""
+            continue
+
+        stream += " " + line
+    lines.append(stream.strip(' ')) if (len(stream) != 0) else None
+
+    records = []
+    for line in lines:
+        passport = {}
+        for kv in line.split():
+            (k, v) = kv.split(':')
+            passport[k] = v
+        records.append(passport)
+    return records
+
+RequiredFields = ['byr', 'iyr', 'eyr', 'hgt', 'hcl', 'ecl', 'pid']
+#+end_src
+
+** Part 1
+#+name: day4_p1_eg.in
+#+begin_example
+ecl:gry pid:860033327 eyr:2020 hcl:#fffffd
+byr:1937 iyr:2017 cid:147 hgt:183cm
+
+iyr:2013 ecl:amb cid:350 eyr:2023 pid:028048884
+hcl:#cfa07d byr:1929
+
+hcl:#ae17e1 iyr:2013
+eyr:2024
+ecl:brn pid:760753108 byr:1931
+hgt:179cm
+
+hcl:#cfa07d eyr:2025 pid:166559648
+iyr:2011 ecl:brn hgt:59in
+#+end_example
+
+#+name: day4_p1_impl
+#+begin_src python
+<<utl-pretty-print>>
+<<day4_utl>>
+
+def IsValid(passport):
+    for field in RequiredFields:
+        if field not in passport.keys():
+            return False
+    return True
+
+NumValidPassports = 0
+for passport in MakeRecords():
+    if IsValid(passport):
+        NumValidPassports += 1
+
+print("NumValidPassports=", NumValidPassports, sep='')
+#+end_src
+
+#+call: day4_p1_impl(Input=day4_p1_eg.in, InputFromFile=0)
+
+#+RESULTS:
+: NumValidPassports=2
+
+#+call: day4_p1_impl(Input="4_in.txt")
+
+#+RESULTS:
+: NumValidPassports=228
+
+** Part 2
+
+#+begin_src python :var Input="4_in.txt"
+<<utl-pretty-print>>
+import re
+<<day4_utl>>
+
+def IsValidHeight(val):
+    m = re.compile('^(?P<height>\d+)(?P<unit>in|cm)$').search(val)
+    if m == None:
+        return False
+    height = int(m.group('height'))
+    if (m.group('unit') == 'cm') and (height in range(150, 194)):
+        return True
+    if (m.group('unit') == 'in') and (height in range(59, 77)):
+        return True
+    return False
+
+def IsValidHairColor(val):
+    return re.compile('^#[0-9a-f]{6}$').search(val)
+
+def IsValidEyeColor(val):
+    return val in ['amb', 'blu', 'brn', 'gry', 'grn', 'hzl', 'oth']
+
+def IsValidPassportId(val):
+    return re.compile('^\d{9}$').search(val)
+
+def IsValid(passport):
+    for field in RequiredFields:
+        if field not in passport.keys():
+            return False
+        val = passport[field]
+
+        if (field == 'byr') and (int(val) not in range(1920, 2003)):
+            return False
+
+        if (field == 'iyr') and (int(val) not in range(2010, 2021)):
+            return False
+
+        if (field == 'eyr') and (int(val) not in range(2020, 2031)):
+            return False
+
+        if (field == 'hgt') and not IsValidHeight(val):
+            return False
+
+        if (field == 'hcl') and not IsValidHairColor(val):
+            return False
+
+        if (field == 'ecl') and not IsValidEyeColor(val):
+            return False
+
+        if (field == 'pid') and not IsValidPassportId(val):
+            return False
+
+    return True
+
+NumValidPassports = 0
+for passport in MakeRecords(ParseInput(Input)):
+    if IsValid(passport):
+        NumValidPassports += 1
+
+print("NumValidPassports=", NumValidPassports, sep='')
+#+end_src
+
+#+RESULTS:
+: NumValidPassports=175
+
+* Day 5
+[[https://adventofcode.com/2020/day/5][Puzzle]], [[file:5_in.txt][Input]]
+
+#+name: day5_utl
+#+begin_src python :results none
+<<utl-parse-input>>
+Lines = ParseInput()
+
+def GetSeatId(loc):
+    rowMin=0
+    rowMax=127
+    colMin=0
+    colMax=7
+
+    for i in range(len(loc)):
+        pos = loc[i]
+        if pos == "B":
+            rowMin += int((rowMax - rowMin + 1) / 2)
+        elif pos == "F":
+            rowMax -= int((rowMax - rowMin + 1) / 2)
+        elif pos == "R":
+            colMin += int((colMax - colMin + 1) / 2)
+        elif pos == "L":
+            colMax -= int((colMax - colMin + 1) / 2)
+        # print("DEBUG: Pos=", pos, ", Row=[", rowMin, "-", rowMax, "], Col=[", colMin, "-", colMax, "]", sep='')
+
+    return rowMin * 8 + colMin
+#+end_src
+
+** Part 1
+#+name: day5_p1_eg.in
+#+begin_example
+FBFBBFFRLR
+BFFFBBFRRR
+FFFBBBFRRR
+BBFFBBFRLL
+#+end_example
+
+#+name: day5_p1_impl
+#+begin_src python
+<<day5_utl>>
+
+maxSeatId = 0
+for line in Lines:
+    maxSeatId = max(maxSeatId, GetSeatId(line))
+
+print("Max SeatId=", maxSeatId, sep='') if Verbose else print(maxSeatId)
+#+end_src
+
+#+call: day5_p1_impl(Input=day5_p1_eg.in, InputFromFile=0)
+
+#+RESULTS:
+: Max SeatId=820
+
+#+call: day5_p1_impl(Input="5_in.txt")
+
+#+RESULTS:
+: Max SeatId=850
+
+** Part 2
+#+begin_src python :var Input="5_in.txt"
+<<day5_utl>>
+
+validSeatIds = []
+for line in Lines:
+    validSeatIds.append(GetSeatId(line))
+validSeatIds.sort()
+
+for seatId in range(validSeatIds[0], validSeatIds[-1]):
+    if seatId in validSeatIds:
+        continue
+
+    if ((seatId - 1) in validSeatIds) and ((seatId + 1) in validSeatIds):
+        print("SeatId=", seatId, sep='')
+        break
+#+end_src
+
+#+RESULTS:
+: SeatId=599
+
+* Day 6
+[[https://adventofcode.com/2020/day/6][Puzzle]], [[file:6_in.txt][Input]]
+
+#+name: day6_eg.in
+#+begin_example
+abc
+
+a
+b
+c
+
+ab
+ac
+
+a
+a
+a
+a
+
+b
+#+end_example
+
+#+name: day6_utl
+#+begin_src python
+<<utl-pretty-print>>
+<<utl-parse-input>>
+
+Lines = ParseInput()
+
+def CollectAllAns(lines):
+    allAns=[]
+    grpAns={}
+
+    for line in lines:
+        indiAns = line.strip('\n')
+
+        if len(indiAns) == 0:
+            allAns.append(grpAns)
+            grpAns={}
+            continue
+
+        from string import ascii_lowercase
+        for q in ascii_lowercase:
+            grpAns.setdefault(q, [])
+            grpAns[q].append(q in indiAns)
+
+    allAns.append(grpAns)
+    return allAns
+#+end_src
+
+** Part 1
+#+name: day6_p1_impl
+#+begin_src python
+<<day6_utl>>
+allAns = CollectAllAns(Lines)
+
+totAnyYes = 0
+for grpAns in allAns:
+    for q,ans in grpAns.items():
+        totAnyYes += 1 if any(ans) else 0
+print("No. of questions to which anyone answered yes=", totAnyYes, sep='')
+#+end_src
+
+#+call: day6_p1_impl(Input=day6_eg.in, InputFromFile=0)
+
+#+RESULTS:
+: No. of questions to which anyone answered yes=11
+
+#+call: day6_p1_impl(Input="6_in.txt")
+
+#+RESULTS:
+: No. of questions to which anyone answered yes=6443
+
+** Part 2
+#+name: day6_p2_impl
+#+begin_src python
+Lines = Input.strip('\n').split('\n')
+
+<<day6_utl>>
+allAns = CollectAllAns(Lines)
+
+totAllYes = 0
+for grpAns in allAns:
+    for q,ans in grpAns.items():
+        totAllYes += 1 if all(ans) else 0
+print("No. of questions to which everyone answered yes=", totAllYes, sep='')
+#+end_src
+
+#+call: day6_p2_impl(Input=day6_eg.in, InputFromFile=0)
+
+#+RESULTS:
+: No. of questions to which everyone answered yes=6
+
+#+call: day6_p2_impl(Input="6_in.txt")
+
+#+RESULTS:
+: No. of questions to which everyone answered yes=3232
+
+* Day 7
+[[https://adventofcode.com/2020/day/7][Puzzle]], [[file:7_in.txt][Input]]
+
+#+name: day7_utl
+#+begin_src python :results none
+Lines = [ line.strip('\n') for line in open(Input).readlines() ]
+
+import re
+
+def MakeBagSpec(lines):
+    bagPat = re.compile('^(?P<name>\w+ \w+)\s+bags contain (no other bags|(?P<contents>.*))')
+    contPat = re.compile('^(?P<num>\d+)\s+(?P<name>\w+\s+\w+)\s+bags?$')
+
+    isContainedIn = {}
+    contains = {}
+    for line in lines:
+        line = line.strip('\n.')
+        mBag = bagPat.search(line)
+
+        if mBag.group('contents') == None:
+            continue
+
+        contains[mBag.group('name')] = []
+        contSpec = []
+        for content in mBag.group('contents').split(','):
+            content = content.strip()
+            mCont = contPat.search(content)
+            isContainedIn.setdefault(mCont.group('name'), [])
+            isContainedIn[mCont.group('name')].append(mBag.group('name'))
+            contains[mBag.group('name')].append({'num': int(mCont.group('num')), 'name': mCont.group('name')})
+
+    return (isContainedIn, contains)
+#+end_src
+
+** Part 1
+#+name: day7_p1_impl
+#+begin_src python
+<<day7_utl>>
+
+isContainedIn, _ = MakeBagSpec(Lines)
+# pp.pprint(contains)
+
+toVisit = {"shiny gold"}
+visited = set()
+while len(toVisit) > 0:
+    bag = toVisit.pop()
+
+    if bag in visited:
+        continue
+    visited.add(bag)
+
+    if bag not in isContainedIn:
+        continue
+
+    for container in isContainedIn[bag]:
+        if container not in visited:
+            toVisit.add(container)
+
+    print("ToVisit:", toVisit, "; Visited:", visited) if Debug else None
+
+print("Shiny Gold bag is contained in", (len(visited) - 1), "bags") if Verbose else print(len(visited) - 1)
+#+end_src
+
+#+call: day7_p1_impl(Input="day7_p1_eg.in")
+
+#+RESULTS:
+: Shiny Gold bag is contained in 4 bags
+
+#+call: day7_p1_impl(Input="7_in.txt")
+
+#+RESULTS:
+: Shiny Gold bag is contained in 131 bags
+
+** Part 2
+#+name: day7_p2_impl
+#+begin_src python
+<<day7_utl>>
+
+_, Contains = MakeBagSpec(Lines)
+
+def GetTotBagsWithin(bag):
+    global Contains
+
+    if bag not in Contains:
+        return 0
+
+    numBags = 0
+    for bagSpec in Contains[bag]:
+        numBags += bagSpec['num'] * (1 + GetTotBagsWithin(bagSpec['name']))
+    return numBags
+
+totBags = GetTotBagsWithin("shiny gold")
+print("shiny gold bag contains", totBags, "bags totally") if Verbose else print(totBags)
+#+end_src
+
+#+call: day7_p2_impl(Input="day7_p2_eg.in")
+
+#+RESULTS:
+: shiny gold bag contains 126 bags totally
+
+#+call: day7_p2_impl(Input="7_in.txt")
+
+#+RESULTS:
+: shiny gold bag contains 11261 bags totally
+
+* Day 8
+[[https://adventofcode.com/2020/day/8][Puzzle]], [[file:8_in.txt][Input]]
+
+#+name: day8_eg.in
+#+begin_example
+nop +0
+acc +1
+jmp +4
+acc +3
+jmp -3
+acc -99
+acc +1
+jmp -4
+acc +6
+#+end_example
+
+#+name: day8_utl
+#+begin_src python :results none
+<<utl-pretty-print>>
+<<utl-parse-input>>
+Lines = ParseInput()
+
+Acc = 0
+
+from enum import Enum
+eOp = Enum('eOp', 'acc jmp nop')
+
+def ToOp(i):
+    return { "nop":eOp.nop, "acc":eOp.acc, "jmp":eOp.jmp }[i]
+
+def MakeProgram(lines):
+    global eOp
+
+    program=[]
+    for line in lines:
+        words = line.split()
+        program.append({ 'op':ToOp(words[0]), 'offset':int(words[1]) })
+    return program
+
+def ExecAndGetNext(program, inst):
+    global Acc
+    op = program[inst]['op']
+    offset = program[inst]['offset']
+
+    print("DEBUG: [", inst, "] Op=", op, ", Offset=", offset, sep='') if Debug else None
+    if op == eOp.jmp:
+        return inst + offset
+    if op == eOp.acc:
+        Acc += offset
+    return inst + 1
+
+def RunProgram(program):
+    global Acc
+    Acc = 0
+    visited = set()
+    inst = 0
+    while True:
+        visited.add(inst)
+        inst = ExecAndGetNext(program, inst)
+        if inst in visited:
+            return False
+        if inst >= len(program):
+            return True
+#+end_src
+
+** Part 1
+#+name: day8_p1_impl
+#+begin_src python
+<<day8_utl>>
+
+ret = RunProgram(MakeProgram(Lines))
+print("Program completed ", ("" if ret else "un"), "successfully. Final Acc=", Acc, sep='') if Verbose else print(Acc)
+#+end_src
+
+#+call: day8_p1_impl(Input=day8_eg.in, InputFromFile=0)
+
+#+RESULTS:
+: Program completed unsuccessfully. Final Acc=5
+
+#+call: day8_p1_impl(Input="8_in.txt")
+
+#+RESULTS:
+: Program completed unsuccessfully. Final Acc=1859
+
+** Part 2
+#+name: day8_p2_impl
+#+begin_src python
+<<day8_utl>>
+Program = MakeProgram(Lines)
+
+for inum in range(len(Program)):
+    if Program[inum]['op'] == eOp.acc:
+        continue
+
+    # Switch nop <=> jmp and update the Program
+    origInst = Program[inum]
+    Program[inum] = { 'op': (eOp.nop if origInst['op'] == eOp.jmp else eOp.jmp), 'offset': origInst['offset'] }
+
+    if RunProgram(Program):
+        # Program completed succesfully. We've identified the fix
+        print("Fixed Inst=", inum, ". OrigInst:", origInst, ". NewInst: ", Program[inum], sep='') if Verbose else None
+        break
+
+    # Restore the op and move on
+    Program[inum] = origInst
+else:
+    print("Unable to identify a fix") if Debug else None
+
+# Program has been fixed at this point. Reset Acc and rerun the program
+RunProgram(Program)
+print("Program completed successfully. Final Acc=", Acc, sep='') if Verbose else print(Acc)
+#+end_src
+
+#+call: day8_p2_impl(Input=day8_eg.in, InputFromFile=0)
+
+#+RESULTS:
+: Fixed Inst=7. OrigInst:{'op': <eOp.jmp: 2>, 'offset': -4}. NewInst: {'op': <eOp.nop: 3>, 'offset': -4}
+: Program completed successfully. Final Acc=8
+
+#+call: day8_p2_impl(Input="8_in.txt")
+
+#+RESULTS:
+: Fixed Inst=235. OrigInst:{'op': <eOp.jmp: 2>, 'offset': 284}. NewInst: {'op': <eOp.nop: 3>, 'offset': 284}
+: Program completed successfully. Final Acc=1235
+
+* Day 9
+[[https://adventofcode.com/2020/day/9][Puzzle]], [[file:9_in.txt][Input]]
+
+#+name: day9_eg.in
+#+begin_example
+35
+20
+15
+25
+47
+40
+62
+55
+65
+95
+102
+117
+150
+182
+127
+219
+299
+277
+309
+576
+#+end_example
+
+#+name: day9_utl
+#+begin_src python :results none
+<<utl-parse-input>>
+Lines = ParseInput(lambda x:int(x))
+
+def IsNumValid(preamble, num):
+    for i in range(len(preamble) - 1):
+        for j in range(i + 1, len(preamble)):
+            if preamble[i] + preamble[j] == num:
+                return True
+    return False
+#+end_src
+
+** Part 1
+#+name: day9_p1_impl
+#+begin_src python :var PreambleSize=0
+<<day9_utl>>
+
+for chkPos in range(PreambleSize, len(Lines)):
+    if not IsNumValid(Lines[chkPos-PreambleSize:chkPos], Lines[chkPos]):
+        print("Pos=", chkPos, ", Num=", Lines[chkPos], " is not Valid", sep='') if Verbose else print(Lines[chkPos])
+        break
+#+end_src
+
+#+name: day9_p1_eg
+#+call: day9_p1_impl(Input=day9_eg.in, InputFromFile=0, PreambleSize=5)
+
+#+RESULTS: day9_p1_eg
+: Pos=14, Num=127 is not Valid
+
+#+name: day9_p1
+#+call: day9_p1_impl(Input="9_in.txt", PreambleSize=25)
+
+#+RESULTS: day9_p1
+: Pos=575, Num=257342611 is not Valid
+
+** Part 2
+#+name: day9_p2_impl
+#+begin_src python :var InvalidVal=""
+InvalidVal = int(InvalidVal)
+
+<<day9_utl>>
+
+done = False
+for first in range(len(Lines) - 1):
+    for last in range(first + 1, len(Lines)):
+        rangeSum = sum(Lines[first:last+1])
+        if rangeSum < InvalidVal:
+            continue
+        if rangeSum > InvalidVal:
+            break
+
+        done = True
+        minVal = min(Lines[first:last+1])
+        maxVal = max(Lines[first:last+1])
+        print("First=", first, ", Last=", last, ", Min=", minVal, ", Max=", maxVal, ", LimitSum=", (minVal + maxVal), sep='')
+
+    if done:
+        break
+#+end_src
+
+#+call: day9_p2_impl(Input=day9_eg.in, InputFromFile=0, InvalidVal=day9_p1_eg(Verbose=0))
+
+#+RESULTS:
+: First=2, Last=5, Min=15, Max=47, LimitSum=62
+
+#+call: day9_p2_impl(Input="9_in.txt", InvalidVal=day9_p1(Verbose=0))
+
+#+RESULTS:
+: First=457, Last=473, Min=9726468, Max=25875629, LimitSum=35602097
+
+* Day 10
+[[https://adventofcode.com/2020/day/10][Puzzle]], [[file:10_in.txt][Input]]
+
+#+name: day10_eg1.in
+#+begin_example
+16
+10
+15
+5
+1
+11
+7
+19
+6
+12
+4
+#+end_example
+
+#+name: day10_eg2.in
+#+begin_example
+28
+33
+18
+42
+31
+14
+46
+20
+48
+47
+24
+23
+49
+45
+19
+38
+39
+11
+1
+32
+25
+35
+8
+17
+7
+9
+4
+2
+34
+10
+3
+#+end_example
+
+#+name: day10_utl
+#+begin_src python :results none
+<<utl-parse-input>>
+Lines = ParseInput(lambda x: int(x))
+Lines.sort()
+Lines.insert(0, 0)
+#+end_src
+
+** Part 1
+#+name: day10_p1_impl
+#+begin_src python
+<<day10_utl>>
+
+numDelta1 = 0
+numDelta3 = 0
+for i in range(1, len(Lines)):
+    diff = Lines[i] - Lines[i-1]
+    if diff == 1:
+        numDelta1 += 1
+    if diff == 3:
+        numDelta3 += 1
+
+# From the final adapter to the device
+numDelta3 += 1
+
+print("Number of 1 jolt differences=", numDelta1, ", 3 jolt differences=", numDelta3, ", Product of the two=", (numDelta1 * numDelta3), sep='')
+#+end_src
+
+#+call: day10_p1_impl(Input=day10_eg1.in, InputFromFile=0)
+
+#+RESULTS:
+: Number of 1 jolt differences=7, 3 jolt differences=5, Product of the two=35
+
+#+call: day10_p1_impl(Input=day10_eg2.in, InputFromFile=0)
+
+#+RESULTS:
+: Number of 1 jolt differences=22, 3 jolt differences=10, Product of the two=220
+
+#+call: day10_p1_impl(Input="10_in.txt")
+
+#+RESULTS:
+: Number of 1 jolt differences=75, 3 jolt differences=40, Product of the two=3000
+
+** Part 2
+#+name: day10_p2_impl
+#+begin_src python
+<<utl-pretty-print>>
+<<day10_utl>>
+
+# Store no. of arrangements for visited elements to reduce recursion
+NumArrangementsFor={}
+
+def CountArrangements(initList=[Lines[0]]):
+    global Lines, NumArrangementsFor
+
+    if initList[-1] == Lines[-1]:
+        return 1
+
+    totArrangements = 0
+    initLastIdx = Lines.index(initList[-1])
+    chkList = Lines[initLastIdx + 1:]
+
+    for chkNum in chkList:
+        if chkNum - initList[-1] <= 3:
+            if chkNum not in NumArrangementsFor:
+                NumArrangementsFor[chkNum] = CountArrangements(initList + [chkNum])
+            totArrangements += NumArrangementsFor[chkNum]
+        else:
+            break
+
+    return totArrangements
+
+
+totArrangements = CountArrangements()
+print("Total no. of arrangements=", totArrangements, sep='')
+#+end_src
+
+#+call: day10_p2_impl(Input=day10_eg1.in, InputFromFile=0)
+
+#+RESULTS:
+: Total no. of arrangements=8
+
+#+call: day10_p2_impl(Input=day10_eg2.in, InputFromFile=0)
+
+#+RESULTS:
+: Total no. of arrangements=19208
+
+#+begin_src python :var Input="10_in.txt" :tangle day10_p2.py
+<<day10_p2_impl>>
+#+end_src
+
+#+RESULTS:
+: Total no. of arrangements=193434623148032
+
+* Day 11
+[[https://adventofcode.com/2020/day/11][Puzzle]], [[file:11_in.txt][Input]]
+
+#+name: day11_eg.in
+#+begin_example
+L.LL.LL.LL
+LLLLLLL.LL
+L.L.L..L..
+LLLL.LL.LL
+L.LL.LL.LL
+L.LLLLL.LL
+..L.L.....
+LLLLLLLLLL
+L.LLLLLL.L
+L.LLLLL.LL
+#+end_example
+
+#+name: day11_utl
+#+begin_src python :results none
+<<utl-pretty-print>>
+<<utl-parse-input>>
+import copy
+
+from enum import Enum
+eStatus = Enum('eStatus', 'Occ Empty Floor')
+
+Layout = []
+def MakeLayout():
+    global Input, Layout
+
+    for line in ParseInput():
+        row = []
+        for char in line:
+            row.append({ ".": eStatus.Floor, "L": eStatus.Empty, "#": eStatus.Occ }[char])
+        Layout.append(row)
+MakeLayout()
+
+def PrintLayout(layout):
+    for y in range(len(layout)):
+        row = "  "
+        for x in range(len(layout[y])):
+            row += { eStatus.Floor: ".", eStatus.Empty: "L", eStatus.Occ: "#" }[layout[y][x]]
+        print(row)
+    print()
+
+def ApplyOccRule(rule):
+    global Layout
+    newLayout = []
+    for y in range(len(Layout)):
+        row = []
+        for x in range(len(Layout[y])):
+            row.append(rule(Layout, x, y))
+        newLayout.append(row)
+    Layout = newLayout
+
+def IterateUntilStable(OccRule):
+    global Layout
+    numIter = 0
+
+    while True:
+        numIter += 1
+        oldLayout = copy.deepcopy(Layout)
+        ApplyOccRule(OccRule)
+        if oldLayout == Layout:
+            break
+
+    print("Took", numIter - 1, "iterations to reach Final Layout") if Verbose else None
+    PrintLayout(Layout) if Debug else None
+
+def CountSeats(status):
+    num = 0
+    for row in Layout:
+        for pos in row:
+            if pos == status:
+                num += 1
+    return num
+#+end_src
+
+** Part 1
+#+name: day11_p1_impl
+#+begin_src python :var Input="day11_eg.in"
+<<day11_utl>>
+
+def GetNumOccAdj(currLayout, x, y):
+    yMax = len(currLayout) - 1
+    xMax = len(currLayout[y]) - 1
+    numOcc = 0
+    for yAdj in range(max(0, y-1), min(yMax, y+1) + 1):
+        for xAdj in range(max(0, x-1), min(xMax, x+1) + 1):
+            if (xAdj == x) and (yAdj == y):
+                continue
+            if currLayout[yAdj][xAdj] == eStatus.Occ:
+                numOcc += 1
+    return numOcc
+
+def OccRule(currLayout, x, y):
+    pos = currLayout[y][x]
+    if pos == eStatus.Floor:
+        return eStatus.Floor
+
+    numOccAdj = GetNumOccAdj(currLayout, x, y)
+    if (pos == eStatus.Empty) and (numOccAdj == 0):
+        return eStatus.Occ
+    elif (pos == eStatus.Occ) and (numOccAdj >= 4):
+        return eStatus.Empty
+
+    return pos
+
+IterateUntilStable(OccRule)
+numOcc = CountSeats(eStatus.Occ)
+print("Final count of occupied seats=", numOcc, sep='') if Verbose else print(numOcc)
+#+end_src
+
+#+name: day11_p1_eg
+#+call: day11_p1_impl(Input=day11_eg.in, InputFromFile=0, Debug=1)
+
+#+RESULTS: day11_p1_eg
+#+begin_example
+Took 5 iterations to reach Final Layout
+  #.#L.L#.##
+  #LLL#LL.L#
+  L.#.L..#..
+  #L##.##.L#
+  #.#L.LL.LL
+  #.#L#L#.##
+  ..L.L.....
+  #L#L##L#L#
+  #.LLLLLL.L
+  #.#L#L#.##
+
+Final count of occupied seats=37
+#+end_example
+
+#+name: day11_p1
+#+call: day11_p1_impl(Input="11_in.txt")
+
+#+RESULTS: day11_p1
+: Took 125 iterations to reach Final Layout
+: Final count of occupied seats=2361
+
+** Part 2
+#+name: day11_p2_eg1.in
+#+begin_example
+.......#.
+...#.....
+.#.......
+.........
+..#L....#
+....#....
+.........
+#........
+...#.....
+#+end_example
+
+#+name: day11_p2_eg2.in
+#+begin_example
+.............
+.L.L.#.#.#.#.
+.............
+#+end_example
+
+#+name: day11_p2_eg3.in
+#+begin_example
+.##.##.
+#.#.#.#
+##...##
+...L...
+##...##
+#.#.#.#
+.##.##.
+#+end_example
+
+#+name: day11_p2_utl
+#+begin_src python :results none
+<<day11_utl>>
+
+def GetNumOccAdj(currLayout, x, y):
+    yMax = len(currLayout) - 1
+    xMax = len(currLayout[y]) - 1
+    numOcc = 0
+
+    # Go along the X-axis in the -ve direction
+    for xAdj in range(x - 1, -1, -1):
+            if currLayout[y][xAdj] == eStatus.Occ:
+                numOcc += 1
+            if currLayout[y][xAdj] != eStatus.Floor:
+                break
+
+    # Go along the X-axis in the +ve direction
+    for xAdj in range(x + 1, xMax + 1):
+        if currLayout[y][xAdj] == eStatus.Occ:
+            numOcc += 1
+        if currLayout[y][xAdj] != eStatus.Floor:
+            break
+
+    # Go along the Y-axis in the -ve direction
+    for yAdj in range(y - 1, -1, -1):
+        if currLayout[yAdj][x] == eStatus.Occ:
+            numOcc += 1
+        if currLayout[yAdj][x] != eStatus.Floor:
+            break
+
+    # Go along the Y-axis in the +ve direction
+    for yAdj in range(y + 1, yMax + 1):
+        if currLayout[yAdj][x] == eStatus.Occ:
+            numOcc += 1
+        if currLayout[yAdj][x] != eStatus.Floor:
+            break
+
+    # Go diagonally in the 0th quadrant (NE direction)
+    distMax = min(xMax - x, y)
+    for dist in range(1, distMax + 1):
+        if currLayout[y-dist][x+dist] == eStatus.Occ:
+            numOcc += 1
+        if currLayout[y-dist][x+dist] != eStatus.Floor:
+            break
+
+    # Go diagonally in the 1st quadrant (NW direction)
+    distMax = min(x, y)
+    for dist in range(1, distMax + 1):
+        if currLayout[y-dist][x-dist] == eStatus.Occ:
+            numOcc += 1
+        if currLayout[y-dist][x-dist] != eStatus.Floor:
+            break
+
+    # Go diagonally in the 2nd quadrant (SW direction)
+    distMax = min(x, yMax - y)
+    for dist in range(1, distMax + 1):
+        if currLayout[y+dist][x-dist] == eStatus.Occ:
+            numOcc += 1
+        if currLayout[y+dist][x-dist] != eStatus.Floor:
+            break
+
+    # Go diagonally in the 3rd quadrant (SE direction)
+    distMax = min(xMax - x, yMax - y)
+    for dist in range(1, distMax + 1):
+        if currLayout[y+dist][x+dist] == eStatus.Occ:
+            numOcc += 1
+        if currLayout[y+dist][x+dist] != eStatus.Floor:
+            break
+
+    return numOcc
+
+def OccRule(currLayout, x, y):
+    pos = currLayout[y][x]
+    if pos == eStatus.Floor:
+        return eStatus.Floor
+
+    numOccAdj = GetNumOccAdj(currLayout, x, y)
+    if (pos == eStatus.Empty) and (numOccAdj == 0):
+        return eStatus.Occ
+    elif (pos == eStatus.Occ) and (numOccAdj >= 5):
+        return eStatus.Empty
+
+    return pos
+#+end_src
+
+#+name: day11_p2_test
+#+begin_src python :tangle "/tmp/day11_p2_test.py" :var X="0", Y="0"
+<<day11_p2_utl>>
+X=int(X)
+Y=int(Y)
+print("x=", X, ", y=", Y, ": Num occupied adjacent seats=", GetNumOccAdj(Layout, X, Y), sep='')
+#+end_src
+
+#+call: day11_p2_test(Input=day11_p2_eg1.in, InputFromFile=0, X=3, Y=4)
+
+#+RESULTS:
+: x=3, y=4: Num occupied adjacent seats=8
+
+#+call: day11_p2_test(Input="day11_p2_eg2.in", X=1, Y=1)
+
+#+RESULTS:
+: x=1, y=1: Num occupied adjacent seats=0
+
+#+call: day11_p2_test(Input=day11_p2_eg3.in, InputFromFile=0, X=3, Y=3)
+
+#+RESULTS:
+: x=3, y=3: Num occupied adjacent seats=0
+
+#+name: day11_p2_impl
+#+begin_src python :tangle "/tmp/day11_p2.py"
+<<day11_p2_utl>>
+IterateUntilStable(OccRule)
+numOcc = CountSeats(eStatus.Occ)
+print("Final count of occupied seats=", numOcc, sep='') if Verbose else print(numOcc)
+#+end_src
+
+#+call: day11_p2_impl(Input=day11_eg.in, InputFromFile=0)
+
+#+RESULTS:
+: Took 6 iterations to reach Final Layout
+: Final count of occupied seats=26
+
+#+call: day11_p2_impl(Input="11_in.txt")
+
+#+RESULTS:
+: Took 84 iterations to reach Final Layout
+: Final count of occupied seats=2119
+
+* Day 12
+[[https://adventofcode.com/2020/day/12][Puzzle]], [[file:12_in.txt][Input]]
+
+#+name: day12_eg.in
+#+begin_example
+F10
+N3
+F7
+R90
+F11
+#+end_example
+
+#+name: day12_utl
+#+begin_src python :results none
+<<utl-parse-input>>
+import re
+
+DirXForm = { "N": (0 + 1j), "E": (1 + 0j), "W": (-1 + 0j), "S": (0 - 1j) }
+pat = re.compile("(?P<dir>[NEWSFLR])(?P<val>\d+)")
+
+def ProcessInput():
+    for line in ParseInput():
+        m = pat.search(line)
+        ApplyMotion(m['dir'], int(m['val']))
+        print(line, " => Pos=", Pos, ", WP=", WP, sep='') if Debug else None
+#+end_src
+
+** Part 1
+#+name: day12_p1_impl
+#+begin_src python
+<<day12_utl>>
+
+def ApplyMotion(dir, val):
+    global Pos, WP, DirXForm
+
+    if dir == "F":
+        Pos += val * WP
+        return
+    elif dir == "L":
+        turns = int(val / 90)
+        WP *= pow(1j, turns)
+    elif dir == "R":
+        turns = int(val / 90)
+        WP *= pow(-1j, turns)
+    else:
+        Pos += val * DirXForm[dir]
+
+Pos = 0j
+WP  = 1 + 0j  # Relative to the ship
+ProcessInput()
+
+manDist = abs(Pos.real) + abs(Pos.imag)
+print("Manhattan distance from the start=", manDist, sep='') if Verbose else print(manDist)
+#+end_src
+
+#+call: day12_p1_impl(Input=day12_eg.in, InputFromFile=0, Debug=1)
+
+#+RESULTS:
+: F10 => Pos=(10+0j), WP=(1+0j)
+: N3 => Pos=(10+3j), WP=(1+0j)
+: F7 => Pos=(17+3j), WP=(1+0j)
+: R90 => Pos=(17+3j), WP=-1j
+: F11 => Pos=(17-8j), WP=-1j
+: Manhattan distance from the start=25.0
+
+#+call: day12_p1_impl(Input="12_in.txt")
+
+#+RESULTS:
+: Manhattan distance from the start=590.0
+
+** Part 2
+#+name: day12_p2_impl
+#+begin_src python
+<<day12_utl>>
+
+def ApplyMotion(dir, val):
+    global Pos, WP, DirXForm
+
+    if dir == "F":
+        Pos += val * WP
+    elif dir == "L":
+        turns = int(val / 90)
+        WP *= pow(1j, turns)
+    elif dir == "R":
+        turns = int(val / 90)
+        WP *= pow(-1j, turns)
+    else:
+        WP += val * DirXForm[dir]
+
+Pos = 0j
+WP  = 10 + 1j  # Relative to the ship
+ProcessInput()
+
+manDist = abs(Pos.real) + abs(Pos.imag)
+print("Manhattan distance from the start=", manDist, sep='') if Verbose else print(manDist)
+#+end_src
+
+#+call: day12_p2_impl(Input=day12_eg.in, InputFromFile=0, Debug=1)
+
+#+RESULTS:
+: F10 => Pos=(100+10j), WP=(10+1j)
+: N3 => Pos=(100+10j), WP=(10+4j)
+: F7 => Pos=(170+38j), WP=(10+4j)
+: R90 => Pos=(170+38j), WP=(4-10j)
+: F11 => Pos=(214-72j), WP=(4-10j)
+: Manhattan distance from the start=286.0
+
+#+call: day12_p2_impl(Input="12_in.txt")
+
+#+RESULTS:
+: Manhattan distance from the start=42013.0
+* Day 13
+[[https://adventofcode.com/2020/day/13][Puzzle]], [[file:13_in.txt][Input]]
+
+#+name: day13_eg.in
+#+begin_example
+939
+7,13,x,x,59,x,31,19
+#+end_example
+
+** Part 1
+#+name: day13_p1_impl
+#+begin_src python
+<<utl-parse-input>>
+Lines = ParseInput()
+Timestamp = int(Lines[0])
+Ids = [ int(id) for id in Lines[1].split(',') if id != "x" ]
+
+waitTimes = [ id - (Timestamp % id) for id in Ids ]
+minWaitTimeIdx = waitTimes.index(min(waitTimes))
+print("WaitTime x Id =", waitTimes[minWaitTimeIdx] * Ids[minWaitTimeIdx])
+#+end_src
+
+#+call: day13_p1_impl(Input=day13_eg.in, InputFromFile=0, Debug=1)
+
+#+RESULTS:
+: WaitTime x Id = 295
+
+#+call: day13_p1_impl(Input="13_in.txt")
+
+#+RESULTS:
+: WaitTime x Id = 4207
+
+** Part 2 brute-force didn't work :(
+
+#+name: day13_p2_bad_impl
+#+begin_src python :tangle day13_p2.py :var Input="day13_eg.in"
+<<utl-pretty-print>>
+<<utl-parse-input>>
+
+IdLine      = ParseInput()[1]
+Ids         = [ int(id) if id != "x" else id for id in IdLine.split(',') ]
+IdIntervals = { id:Ids.index(id) for id in Ids if id != "x" }
+pp.pprint(IdIntervals) if Verbose else None
+MaxId = max(IdIntervals.keys())
+print("MaxId=", MaxId, ", Interval=", IdIntervals[MaxId], sep='') if Debug else None
+
+t = MaxId - IdIntervals[MaxId]
+while True:
+    for id,interval in IdIntervals.items():
+        if (t + interval) % id != 0:
+            print("t=", t, " did not satisfy id=", id, ", interval=", interval, sep='') if Debug else None
+            t += MaxId
+            break
+    else:
+        print("Timestamp=", t, sep='')
+        break
+#+end_src
+
+#+call: day13_p2_bad_impl(Input=day13_eg.in, InputFromFile=0)
+
+#+RESULTS:
+: {7: 0, 13: 1, 19: 7, 31: 6, 59: 4}
+: Timestamp=1068781
+
+#+call: day13_p2_bad_impl(Input="17,x,13,19", InputFromFile=0)
+
+#+RESULTS:
+: {13: 2, 17: 0, 19: 3}
+: Timestamp=3417
+
+#+call: day13_p2_bad_impl(Input="67,7,59,61", InputFromFile=0)
+
+#+RESULTS:
+: {7: 1, 59: 2, 61: 3, 67: 0}
+: Timestamp=754018
+
+#+call: day13_p2_bad_impl(Input="67,x,7,59,61", InputFromFile=0)
+
+#+RESULTS:
+: {7: 2, 59: 3, 61: 4, 67: 0}
+: Timestamp=779210
+
+#+call: day13_p2_bad_impl(Input="67,7,x,59,61", InputFromFile=0)
+
+#+RESULTS:
+: {7: 1, 59: 3, 61: 4, 67: 0}
+: Timestamp=1261476
+
+#+call: day13_p2_bad_impl(Input="1789,37,47,1889", InputFromFile=0)
+
+#+RESULTS:
+: {37: 1, 47: 2, 1789: 0, 1889: 3}
+: Timestamp=1202161486
+
+** TODO Part 2 using Chinese Remainder Theorem
+
+The example problem can be expressed like this
+#+begin_example
+t =  7a - 0
+t = 13b - 1
+t = 59e - 4
+t = 31d - 6
+t = 19c - 7
+#+end_example
+
+which can be written as
+#+begin_example
+t ≡  0 (mod  7) ≡  0 (mod  7)
+t ≡ -1 (mod 13) ≡ 12 (mod 13)
+t ≡ -4 (mod 59) ≡ 55 (mod 59)
+t ≡ -6 (mod 31) ≡ 25 (mod 31)
+t ≡ -7 (mod 19) ≡ 12 (mod 19)
+#+end_example
+
+This can be solved for 't' using the Chinese Remainder Theorem. Thus, this becomes
+#+begin_example
+m0 * x0 ≡  0 (mod  7)
+m1 * x1 ≡ 12 (mod 13)
+m2 * x2 ≡ 55 (mod 59)
+m3 * x3 ≡ 25 (mod 31)
+m4 * x4 ≡ 12 (mod 19)
+#+end_example
+Note that if =m > n=, we can further reduce it to =m = (m % n)=
+
+where
+#+begin_example
+m0 =      13 * 59 * 31 * 19
+m1 =  7      * 59 * 31 * 19
+m2 =  7 * 13      * 31 * 19
+m3 =  7 * 13 * 59      * 19
+m4 =  7 * 13 * 59 * 31
+#+end_example
+
+Thus, we end up with
+#+begin_example
+m * x ≡ b (mod n)
+#+end_example
+
+Finally, this can be used to compute t
+#+begin_example
+t = Σ(x * b * n) % Ρ
+#+end_example
+
+#+name: day13_p2_impl
+#+begin_src python
+<<utl-parse-input>>
+<<utl-pretty-print>>
+
+words = ParseInput()[1].split(',')
+M = []
+B = []
+N = []
+Product = 1
+for idx in range(len(words)):
+    if words[idx] != "x":
+        n = int(words[idx])
+        N.append(n)
+        B.append(n - idx)
+        Product *= int(words[idx])
+
+for n in N:
+    M.append(int(Product/n) % n)
+
+if Verbose:
+    print("M:", M)
+    print("B:", B)
+    print("N:", N)
+
+X = []
+for i in range(len(M)):
+    x = 1
+    while True:
+        if (M[i] * x) % N[i] == B[i]:
+            X.append(x)
+            break
+        else:
+            x += 1
+print("X:", X) if Verbose else None
+
+# t = 1
+# for i in range(len(X)):
+#     t += X[i] * B[i] * N[i]
+# t = t % Product
+# print("t=", t, sep='')
+#+end_src
+
+#+call: day13_p2_impl(Input=day13_eg.in, InputFromFile=0)
+
+#+RESULTS:
+: M: [4, 1,  27, 21, 18]
+: B: [7, 12, 55, 25, 12]
+: N: [7, 13, 59, 31, 19]
+
+X = [7, 12, 37, 13, ]
+
+* Day 14
+[[https://adventofcode.com/2020/day/14][Puzzle]], [[file:14_in.txt][Input]]
+
+#+name: day14_utl
+#+begin_src python
+<<utl-pretty-print>>
+<<utl-parse-input>>
+import re
+
+Lines = ParseInput()
+Mask0 = 0  # Set bits are 0
+Mask1 = 0  # Set bits are 1
+MaskX = 0  # Set bits are X
+Mem={}
+
+def ParseInstr(line):
+    words = [ word.strip() for word in line.split('=') ]
+    if words[0] == "mask":
+        mask1, mask0, maskX = MakeMasks(words[1])
+        return { "Cmd":"Mask", "Mask0":mask0, "Mask1":mask1, "MaskX":maskX }
+    else:
+        p = re.compile("^mem\[(?P<memLoc>\d+)]")
+        m = p.search(words[0])
+        memLoc = int(m['memLoc'])
+        val = int(words[1])
+        return { "Cmd":"Mem", "Loc":memLoc, "Val":val}
+
+def MakeMasks(_mask):
+    mask0 = int(_mask.replace('1', 'X').replace('0', '1').replace('X', '0'), base=2)
+    mask1 = int(_mask.replace('X', '0'), base=2)
+    maskX = int(_mask.replace('1', '0').replace('X', '1'), base=2)
+    return (mask1, mask0, maskX)
+#+end_src
+
+** Part 1
+#+name: day14_p1_eg.in
+#+begin_example
+mask = XXXXXXXXXXXXXXXXXXXXXXXXXXXXX1XXXX0X
+mem[8] = 11
+mem[7] = 101
+mem[8] = 0
+#+end_example
+
+#+name: day14_p1_impl
+#+begin_src python
+<<day14_utl>>
+
+for line in Lines:
+    op = ParseInstr(line)
+    if op['Cmd'] == "Mask":
+        Mask0 = op['Mask0']
+        Mask1 = op['Mask1']
+    else:
+        val = (op['Val'] & ~Mask0) | Mask1
+        Mem[op['Loc']] = val
+
+pp.pprint(Mem) if Debug else None
+memSum = sum(Mem.values())
+print("Sum of all elements in Memory=", memSum, sep='') if Verbose else None
+#+end_src
+
+#+call: day14_p1_impl(Input=day14_p1_eg.in, InputFromFile=0)
+
+#+RESULTS:
+: Sum of all elements in Memory=165
+
+#+call: day14_p1_impl(Input="14_in.txt")
+
+#+RESULTS:
+: Sum of all elements in Memory=3059488894985
+
+** Part 2
+#+name: day14_p2_eg.in
+#+begin_example
+mask = 000000000000000000000000000000X1001X
+mem[42] = 100
+mask = 00000000000000000000000000000000X0XX
+mem[26] = 1
+#+end_example
+
+#+name: day14_p2_impl
+#+begin_src python
+<<day14_utl>>
+
+FloatBits = []
+for line in Lines:
+    op = ParseInstr(line)
+    if op['Cmd'] == "Mask":
+        Mask0 = op['Mask0']
+        Mask1 = op['Mask1']
+        MaskX = op['MaskX']
+
+        FloatLoc = []
+        val = 1
+        while val <= MaskX:
+            if MaskX & val != 0:
+                FloatLoc += [i + val for i in FloatLoc] if len(FloatLoc) != 0 else [0, val]
+            val = val << 1
+
+        print(line, ": Mask1=", Mask1, ", MaskX=", MaskX, ", FloatLoc=", FloatLoc, sep='') if Debug else None
+
+    else:
+        print(line) if Debug else None
+        for loc in FloatLoc:
+            memLoc = loc + ((op['Loc'] & ~MaskX) | Mask1)
+            Mem[memLoc] = op['Val']
+
+pp.pprint(Mem) if Debug else None
+memSum = sum(Mem.values())
+print("Sum of all elements in Memory=", memSum, sep='') if Verbose else None
+#+end_src
+
+#+call: day14_p2_impl(Input=day14_p2_eg.in, InputFromFile=0, Debug=1)
+
+#+RESULTS:
+: mask = 000000000000000000000000000000X1001X: Mask1=18, MaskX=33, FloatLoc=[0, 1, 32, 33]
+: mem[42] = 100
+: mask = 00000000000000000000000000000000X0XX: Mask1=0, MaskX=11, FloatLoc=[0, 1, 2, 3, 8, 9, 10, 11]
+: mem[26] = 1
+: {16: 1, 17: 1, 18: 1, 19: 1, 24: 1, 25: 1, 26: 1, 27: 1, 58: 100, 59: 100}
+: Sum of all elements in Memory=208
+
+#+begin_src python :var Input="14_in.txt" :tangle day14_p2.py
+<<day14_p2_impl>>
+#+end_src
+
+#+RESULTS:
+: Sum of all elements in Memory=2900994392308
+
+* Day 15
+[[https://adventofcode.com/2020/day/15][Puzzle]]
+
+#+name: day15_utl
+#+begin_src python :result no :export no
+<<utl-pretty-print>>
+
+Num = [ int(i) for i in Input.strip('\n').split(',') ]
+Ages = { i:[Num.index(i) + 1] for i in Num }
+Last = Num[-1]
+Turn = len(Num)
+
+while Turn < Stop:
+    Turn += 1
+    Last = 0 if len(Ages[Last]) <= 1 else Ages[Last][-1] - Ages[Last][-2]
+
+    Ages.setdefault(Last, [])
+    Ages[Last].append(Turn)
+    if len(Ages[Last]) > 2:
+        Ages[Last].pop(0)
+
+    print("Last=", Last, ", Ages=", Ages, sep='') if Debug else None
+
+print(Stop, "th number spoken=", Last, sep='') if Verbose else print(Last)
+#+end_src
+
+** Part 1
+#+name: day15_p1_impl
+#+begin_src python :var Stop=2020 :tangle day15.py
+<<day15_utl>>
+#+end_src
+
+#+call: day15_p1_impl(Input="0,3,6")
+
+#+RESULTS:
+: 2020th number spoken=436
+
+#+call: day15_p1_impl(Input="1,3,2")
+
+#+RESULTS:
+: 2020th number spoken=1
+
+#+call: day15_p1_impl(Input="2,1,3")
+
+#+RESULTS:
+: 2020th number spoken=10
+
+#+call: day15_p1_impl(Input="1,2,3")
+
+#+RESULTS:
+: 2020th number spoken=27
+
+#+call: day15_p1_impl(Input="2,3,1")
+
+#+RESULTS:
+: 2020th number spoken=78
+
+#+call: day15_p1_impl(Input="3,2,1")
+
+#+RESULTS:
+: 2020th number spoken=438
+
+#+call: day15_p1_impl(Input="3,1,2")
+
+#+RESULTS:
+: 2020th number spoken=1836
+
+#+call: day15_p1_impl(Input="16,11,15,0,1,7")
+
+#+RESULTS:
+: 2020th number spoken=662
+
+** Part 2
+#+name: day15_p2_impl
+#+begin_src python :var Stop=30000000
+<<day15_utl>>
+#+end_src
+
+#+call: day15_p2_impl(Input="0,3,6")
+
+#+RESULTS:
+: 30000000th number spoken=175594
+
+#+call: day15_p2_impl(Input="1,3,2")
+
+#+RESULTS:
+: 2020th number spoken=1
+
+#+call: day15_p2_impl(Input="2,1,3")
+
+#+RESULTS:
+: 2020th number spoken=10
+
+#+call: day15_p2_impl(Input="1,2,3")
+
+#+RESULTS:
+: 2020th number spoken=27
+
+#+call: day15_p2_impl(Input="2,3,1")
+
+#+RESULTS:
+: 2020th number spoken=78
+
+#+call: day15_p2_impl(Input="3,2,1")
+
+#+RESULTS:
+: 2020th number spoken=438
+
+#+call: day15_p2_impl(Input="3,1,2")
+
+#+RESULTS:
+: 2020th number spoken=1836
+
+#+call: day15_p2_impl(Input="16,11,15,0,1,7")
+
+#+RESULTS:
+: 30000000th number spoken=37312
+
+* Day 16
+[[https://adventofcode.com/2020/day/16][Puzzle]], [[file:16_in.txt][Input]]
+
+#+name: day16_eg.in
+#+begin_example
+class: 1-3 or 5-7
+row: 6-11 or 33-44
+seat: 13-40 or 45-50
+
+your ticket:
+7,1,14
+
+nearby tickets:
+7,3,47
+40,4,50
+55,2,20
+38,6,12
+#+end_example
+
+#+name: day16_utl
+#+begin_src python
+import re
+
+<<utl-parse-input>>
+Lines = ParseInput()
+
+Rules = {}
+ValidTickets = []
+RuleBreakers = []
+
+parseRules = True
+parseMyTicket = False
+parseNearbyTickets = False
+
+def GetValidFields(val):
+    validFields = set()
+    for name, validRanges in Rules.items():
+        for chkRange in validRanges:
+            if val in chkRange:
+                validFields.add(name)
+                break
+
+    return validFields
+
+for line in Lines:
+    if len(line) == 0:
+        parseRules = False
+        parseMyTicket = False
+        parseNearbyTickets = False
+
+    if parseRules:
+        m = re.compile("^(?P<name>[^:]+):\s+(\d+)-(\d+)\s+or\s+(\d+)-(\d+)").search(line)
+        Rules[m.group('name')] = [range(int(m.group(2)), int(m.group(3)) + 1), range(int(m.group(4)), int(m.group(5)) + 1)]
+        # print(line, ":", m.group('name'), "=>", Rules[m.group('name')]) if Debug else None
+
+    if parseMyTicket:
+        ValidTickets.append([ int(word) for word in line.split(',') ])
+    if re.compile("your ticket").match(line):
+        parseMyTicket = True
+
+    if parseNearbyTickets:
+        ticket = [ int(word) for word in line.split(',') ]
+        for field in ticket:
+            validFields = GetValidFields(field)
+            if len(validFields) == 0:
+                # print("Field=", field, " did not match any rule", sep='') if Debug else None
+                RuleBreakers.append(field)
+                break
+        else:
+            ValidTickets.append(ticket)
+
+    elif re.compile("nearby tickets").match(line):
+        parseNearbyTickets = True
+#+end_src
+
+** Part 1
+#+name: day16_p1_impl
+#+begin_src python :tangle day16.py
+<<day16_utl>>
+print("Ticket error scanning rate=", sum(RuleBreakers))
+#+end_src
+
+#+call: day16_p1_impl(Input=day16_eg.in, InputFromFile=0, Debug=1)
+
+#+RESULTS:
+: class: 1-3 or 5-7 : class => [range(1, 4), range(5, 8)]
+: row: 6-11 or 33-44 : row => [range(6, 12), range(33, 45)]
+: seat: 13-40 or 45-50 : seat => [range(13, 41), range(45, 51)]
+: Field=4 did not match any rule
+: Field=55 did not match any rule
+: Field=12 did not match any rule
+: Ticket error scanning rate= 71
+
+#+call: day16_p1_impl(Input="16_in.txt")
+
+#+RESULTS:
+: Ticket error scanning rate= 29759
+
+** TODO Part 2
+#+name: day16_p2_utl
+#+begin_src python
+<<day16_utl>>
+<<utl-pretty-print>>
+
+FieldIdx = []
+for i in range(len(ValidTickets[0])):
+    FieldIdx.append(set())
+
+for ticket in ValidTickets:
+    for idx, field in enumerate(ticket):
+        FieldIdx[idx] |= GetValidFields(field)
+
+# pp.pprint(FieldIdx) if Debug else None
+
+# Iterate over FieldIdx and identify which index can be of only 1 type and remove that type from other elements
+for field in Rules.keys():
+    validPos = []
+    for i, validTypes in enumerate(FieldIdx):
+        if field not in validTypes:
+            continue
+        if len(validTypes) == 1:
+            validPos = [i]
+            break
+        else:
+            validPos.append(i)
+
+    print("Field=", field, ", ValidPos=", validPos, sep='') if Debug else None
+    # FieldIdx[validPos[0]] = field
+
+pp.pprint(FieldIdx) if Debug else None
+#+end_src
+
+#+call: day16_p2_utl(Input=day16_eg.in, InputFromFile=0, Debug=1)
+
+#+RESULTS:
+: ['row', 'class', 'seat']
+
+#+name: day16_p2_impl
+#+begin_src python
+<<day16_p2_utl>>
+pp.pprint(ValidTickets)
+# myTicket = ValidTickets[0]
+# ans = 1
+# for i,field in enumerate(FieldIdx):
+#     if re.compile("^departure").match(field):
+#         ans *= myTicket[i]
+
+# print("Product of all fields that start with departure is", ans)
+#+end_src
+
+#+call: day16_p2_impl(Input="16_in.txt", Debug=1)
+
+#+RESULTS:
+#+begin_example
+Field=departure location, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=departure station, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=departure platform, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=departure track, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=departure date, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=departure time, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=arrival location, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=arrival station, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=arrival platform, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=arrival track, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=class, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=duration, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=price, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=route, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=row, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=seat, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=train, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=type, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=wagon, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+Field=zone, ValidPos=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+[ { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'},
+  { 'arrival location',
+    'arrival platform',
+    'arrival station',
+    'arrival track',
+    'class',
+    'departure date',
+    'departure location',
+    'departure platform',
+    'departure station',
+    'departure time',
+    'departure track',
+    'duration',
+    'price',
+    'route',
+    'row',
+    'seat',
+    'train',
+    'type',
+    'wagon',
+    'zone'}]
+[ [137, 149, 139, 127, 83, 61, 89, 53, 73, 67, 131, 113, 109, 101, 71, 59, 103, 97, 107, 79],
+  [390, 125, 294, 296, 621, 356, 716, 135, 845, 790, 433, 348, 710, 927, 863, 136, 834, 139, 115, 323],
+  [819, 227, 432, 784, 840, 691, 760, 608, 352, 759, 85, 712, 578, 575, 901, 151, 440, 494, 283, 274],
+  [455, 784, 136, 934, 493, 390, 140, 53, 397, 355, 802, 100, 420, 126, 902, 870, 588, 498, 60, 607],
+  [71, 303, 390, 394, 68, 796, 372, 829, 153, 656, 769, 103, 827, 588, 873, 595, 619, 149, 235, 785],
+  [494, 323, 586, 945, 847, 75, 839, 606, 586, 457, 355, 840, 114, 376, 753, 207, 205, 823, 273, 840],
+  [499, 500, 425, 68, 402, 319, 931, 287, 822, 631, 386, 897, 311, 757, 570, 752, 651, 565, 135, 494],
+  [239, 238, 456, 392, 227, 850, 352, 703, 786, 939, 334, 298, 336, 740, 833, 148, 353, 712, 319, 267],
+  [855, 845, 557, 145, 78, 693, 559, 560, 203, 398, 563, 480, 180, 892, 349, 935, 816, 274, 370, 582],
+  [440, 365, 720, 81, 497, 281, 717, 414, 531, 154, 595, 693, 849, 73, 488, 594, 215, 301, 131, 263],
+  [943, 311, 275, 550, 680, 409, 168, 875, 406, 935, 531, 575, 141, 809, 622, 303, 143, 131, 814, 408],
+  [521, 558, 250, 699, 125, 716, 781, 88, 386, 396, 783, 69, 738, 898, 585, 84, 233, 131, 228, 340],
+  [554, 435, 108, 821, 939, 616, 622, 586, 371, 705, 706, 627, 159, 186, 839, 498, 829, 932, 367, 83],
+  [393, 850, 936, 532, 673, 716, 597, 534, 874, 128, 380, 108, 333, 401, 818, 137, 426, 152, 83, 275],
+  [121, 424, 681, 767, 498, 819, 811, 334, 941, 413, 295, 55, 205, 432, 334, 311, 764, 128, 714, 223],
+  [483, 188, 293, 866, 245, 814, 894, 870, 272, 572, 687, 98, 758, 239, 310, 788, 78, 624, 841, 589],
+  [846, 748, 338, 875, 699, 232, 562, 120, 868, 837, 149, 423, 311, 521, 638, 435, 940, 460, 786, 760],
+  [659, 141, 95, 240, 538, 229, 328, 730, 563, 761, 559, 246, 206, 589, 238, 277, 553, 543, 409, 226],
+  [459, 819, 942, 720, 875, 902, 417, 573, 796, 285, 948, 398, 401, 583, 701, 139, 528, 437, 185, 100],
+  [329, 342, 768, 826, 125, 601, 622, 111, 768, 247, 622, 658, 60, 524, 59, 102, 161, 727, 84, 549],
+  [358, 185, 693, 698, 800, 942, 717, 386, 486, 126, 790, 300, 623, 321, 792, 401, 140, 330, 483, 497],
+  [607, 772, 754, 459, 99, 424, 491, 610, 332, 828, 614, 579, 868, 947, 228, 399, 799, 700, 71, 703],
+  [89, 275, 51, 112, 131, 929, 812, 115, 160, 677, 872, 721, 577, 353, 612, 351, 479, 176, 876, 500],
+  [571, 188, 613, 707, 249, 522, 730, 300, 695, 491, 808, 686, 556, 209, 93, 279, 107, 804, 118, 58],
+  [77, 59, 449, 604, 656, 306, 91, 713, 852, 694, 122, 551, 837, 901, 99, 600, 758, 701, 538, 388],
+  [799, 525, 133, 859, 231, 844, 232, 614, 286, 371, 847, 230, 309, 801, 774, 53, 351, 480, 895, 782],
+  [763, 556, 266, 716, 108, 456, 67, 62, 93, 903, 327, 308, 947, 416, 329, 947, 890, 763, 152, 160],
+  [508, 937, 332, 803, 790, 604, 845, 718, 570, 178, 710, 570, 79, 310, 716, 486, 51, 61, 850, 554],
+  [525, 493, 610, 807, 695, 440, 566, 403, 699, 497, 215, 107, 641, 395, 208, 385, 551, 143, 399, 318],
+  [729, 949, 68, 304, 399, 53, 832, 68, 892, 487, 532, 568, 342, 410, 896, 440, 53, 375, 488, 767],
+  [50, 178, 179, 603, 786, 928, 863, 128, 60, 416, 315, 409, 277, 721, 931, 74, 326, 799, 679, 760],
+  [825, 154, 847, 112, 854, 202, 658, 287, 128, 667, 93, 550, 730, 494, 329, 819, 683, 394, 557, 836],
+  [834, 689, 441, 804, 109, 758, 480, 678, 935, 659, 626, 791, 573, 499, 273, 82, 843, 434, 804, 436],
+  [556, 711, 629, 497, 684, 106, 341, 581, 493, 787, 844, 50, 660, 791, 548, 290, 674, 478, 589, 799],
+  [487, 759, 287, 890, 330, 107, 250, 82, 129, 706, 448, 936, 552, 80, 751, 898, 630, 526, 399, 730],
+  [104, 302, 612, 722, 523, 60, 891, 353, 597, 588, 839, 363, 355, 77, 855, 521, 264, 293, 429, 813],
+  [153, 152, 729, 412, 945, 82, 341, 746, 150, 757, 278, 74, 722, 893, 546, 143, 180, 627, 237, 391],
+  [123, 564, 719, 682, 602, 597, 598, 898, 70, 389, 203, 785, 578, 649, 138, 88, 524, 89, 819, 53],
+  [946, 701, 213, 127, 708, 86, 67, 497, 55, 772, 210, 764, 583, 719, 77, 87, 559, 290, 584, 97],
+  [479, 631, 283, 91, 706, 800, 547, 408, 943, 697, 658, 283, 330, 170, 524, 67, 403, 591, 800, 604],
+  [562, 532, 909, 877, 92, 534, 706, 725, 414, 278, 583, 721, 760, 225, 231, 761, 133, 561, 795, 713],
+  [330, 873, 285, 701, 616, 496, 768, 207, 290, 719, 150, 835, 937, 248, 252, 897, 683, 229, 573, 576],
+  [399, 416, 673, 747, 326, 440, 696, 179, 892, 321, 575, 554, 243, 626, 522, 281, 852, 127, 806, 339],
+  [802, 709, 270, 823, 565, 452, 831, 563, 702, 527, 847, 116, 144, 334, 92, 707, 299, 410, 371, 428],
+  [118, 439, 478, 681, 279, 489, 145, 98, 404, 437, 274, 579, 539, 303, 818, 413, 675, 76, 571, 939],
+  [356, 251, 332, 824, 136, 146, 439, 232, 315, 932, 398, 848, 623, 947, 934, 483, 621, 756, 102, 618],
+  [875, 604, 80, 606, 839, 104, 726, 114, 683, 231, 154, 940, 83, 940, 898, 787, 285, 691, 548, 96],
+  [867, 319, 946, 877, 314, 897, 377, 757, 462, 725, 97, 570, 459, 128, 339, 303, 817, 525, 349, 900],
+  [727, 710, 147, 428, 770, 287, 283, 328, 60, 930, 596, 301, 179, 527, 494, 496, 107, 839, 763, 864],
+  [667, 52, 178, 306, 932, 729, 439, 572, 868, 86, 784, 113, 701, 56, 110, 560, 271, 235, 351, 406],
+  [839, 657, 898, 705, 630, 317, 394, 805, 128, 799, 277, 853, 821, 495, 759, 97, 221, 557, 819, 94],
+  [402, 768, 462, 120, 829, 751, 138, 383, 95, 280, 559, 520, 702, 106, 235, 579, 697, 581, 697, 154],
+  [794, 630, 586, 683, 313, 854, 796, 62, 304, 84, 486, 141, 325, 575, 767, 51, 585, 300, 754, 771],
+  [821, 533, 292, 872, 623, 717, 85, 270, 776, 238, 551, 392, 626, 538, 796, 931, 325, 553, 188, 947],
+  [298, 790, 296, 323, 855, 721, 460, 439, 704, 892, 576, 295, 93, 306, 713, 850, 310, 438, 778, 122],
+  [720, 544, 287, 423, 71, 705, 241, 803, 265, 680, 108, 66, 588, 498, 831, 370, 605, 707, 206, 101],
+  [206, 574, 747, 846, 241, 596, 206, 619, 301, 99, 54, 700, 561, 701, 934, 760, 203, 353, 753, 688],
+  [558, 136, 727, 810, 116, 557, 478, 549, 787, 191, 761, 408, 721, 813, 435, 763, 836, 296, 334, 316],
+  [220, 626, 768, 901, 813, 695, 334, 244, 206, 615, 70, 143, 114, 752, 76, 91, 146, 388, 122, 356],
+  [369, 699, 225, 498, 591, 105, 659, 61, 424, 141, 718, 60, 777, 496, 495, 673, 705, 837, 623, 573],
+  [928, 811, 759, 319, 405, 698, 82, 315, 412, 583, 289, 720, 383, 353, 601, 341, 325, 70, 248, 154],
+  [552, 695, 108, 556, 329, 304, 185, 134, 681, 370, 891, 697, 270, 303, 445, 831, 339, 433, 424, 746],
+  [202, 306, 246, 767, 76, 128, 123, 403, 355, 794, 856, 774, 875, 139, 627, 615, 714, 901, 293, 431],
+  [822, 750, 877, 112, 861, 204, 99, 571, 827, 623, 522, 94, 874, 541, 699, 89, 587, 350, 847, 440],
+  [764, 85, 337, 895, 337, 711, 81, 811, 155, 277, 303, 523, 278, 301, 813, 614, 542, 115, 750, 124],
+  [822, 824, 588, 587, 931, 524, 274, 129, 864, 93, 755, 95, 527, 790, 854, 659, 124, 420, 91, 563],
+  [693, 631, 798, 150, 694, 852, 793, 597, 824, 593, 621, 300, 400, 77, 122, 71, 723, 634, 576, 874],
+  [96, 644, 524, 315, 387, 705, 188, 328, 942, 558, 87, 699, 75, 154, 69, 495, 532, 356, 817, 484],
+  [369, 211, 462, 595, 817, 247, 770, 600, 561, 547, 226, 235, 946, 348, 105, 440, 245, 432, 315, 51],
+  [77, 878, 560, 244, 392, 282, 878, 759, 227, 498, 827, 759, 53, 570, 204, 616, 557, 913, 147, 728],
+  [338, 62, 366, 118, 333, 622, 594, 355, 931, 390, 549, 835, 144, 98, 837, 591, 294, 85, 298, 605],
+  [938, 657, 385, 246, 839, 401, 120, 625, 64, 288, 440, 196, 765, 301, 339, 225, 397, 761, 565, 226],
+  [522, 826, 158, 819, 717, 185, 938, 407, 616, 808, 590, 315, 497, 663, 441, 711, 100, 673, 495, 944],
+  [92, 897, 757, 843, 103, 850, 526, 311, 605, 457, 571, 757, 691, 73, 617, 802, 944, 91, 307, 693],
+  [790, 56, 355, 50, 932, 613, 600, 456, 342, 579, 332, 123, 321, 862, 865, 154, 198, 459, 371, 240],
+  [234, 232, 725, 96, 492, 207, 88, 287, 412, 851, 322, 242, 615, 571, 615, 112, 255, 94, 935, 498],
+  [143, 280, 616, 74, 107, 646, 66, 821, 833, 280, 585, 532, 520, 240, 897, 492, 825, 731, 411, 298],
+  [826, 938, 144, 606, 107, 870, 281, 283, 679, 431, 402, 634, 352, 872, 557, 617, 554, 878, 234, 123],
+  [549, 812, 138, 621, 877, 317, 848, 719, 861, 576, 715, 586, 669, 122, 462, 110, 795, 273, 584, 593],
+  [527, 857, 596, 304, 85, 285, 152, 595, 150, 366, 559, 186, 813, 97, 77, 302, 432, 781, 658, 572],
+  [864, 53, 95, 605, 407, 532, 115, 424, 187, 261, 612, 628, 356, 212, 711, 781, 585, 52, 119, 556],
+  [205, 460, 237, 496, 871, 290, 453, 598, 313, 715, 156, 792, 103, 616, 425, 144, 83, 591, 124, 683],
+  [695, 161, 119, 400, 186, 527, 215, 836, 158, 412, 834, 130, 723, 708, 579, 731, 394, 144, 152, 889],
+  [593, 567, 215, 155, 157, 556, 709, 832, 371, 620, 291, 520, 504, 831, 674, 405, 132, 798, 394, 594],
+  [159, 704, 526, 304, 706, 826, 948, 773, 860, 845, 121, 833, 62, 873, 529, 589, 707, 285, 203, 752],
+  [125, 445, 530, 731, 559, 141, 709, 95, 327, 599, 319, 306, 855, 120, 86, 731, 150, 813, 578, 370],
+  [782, 120, 771, 701, 99, 845, 339, 273, 492, 535, 83, 501, 818, 51, 602, 304, 938, 562, 267, 80],
+  [949, 875, 854, 63, 761, 409, 66, 902, 872, 573, 788, 87, 849, 60, 428, 531, 557, 241, 141, 375],
+  [546, 457, 754, 288, 936, 718, 696, 936, 142, 144, 227, 76, 577, 77, 327, 561, 690, 615, 479, 809],
+  [85, 794, 406, 226, 837, 625, 749, 105, 615, 201, 144, 339, 159, 198, 526, 872, 855, 592, 660, 874],
+  [236, 794, 314, 69, 566, 54, 134, 535, 93, 827, 266, 558, 593, 775, 606, 493, 593, 939, 877, 683],
+  [410, 619, 314, 57, 889, 67, 74, 706, 943, 601, 789, 718, 723, 928, 150, 147, 233, 218, 798, 494],
+  [604, 156, 408, 319, 205, 889, 493, 841, 858, 858, 315, 412, 849, 298, 689, 352, 869, 330, 57, 489],
+  [205, 585, 749, 863, 747, 559, 495, 889, 332, 564, 535, 236, 51, 687, 326, 712, 336, 530, 580, 573],
+  [416, 564, 763, 937, 322, 233, 311, 829, 268, 456, 439, 310, 114, 570, 604, 389, 308, 111, 153, 939],
+  [286, 799, 300, 595, 553, 340, 224, 348, 292, 802, 577, 87, 80, 215, 725, 624, 621, 522, 54, 430],
+  [180, 429, 353, 120, 409, 554, 710, 97, 403, 115, 586, 425, 354, 302, 289, 871, 528, 284, 795, 478],
+  [946, 530, 149, 59, 289, 305, 761, 788, 429, 630, 135, 216, 521, 250, 266, 746, 838, 531, 458, 247],
+  [546, 867, 552, 244, 125, 205, 139, 617, 758, 77, 940, 315, 423, 137, 539, 111, 105, 616, 489, 899],
+  [628, 134, 633, 247, 188, 710, 613, 898, 425, 589, 278, 115, 340, 784, 893, 707, 752, 854, 934, 428],
+  [213, 291, 106, 840, 903, 609, 197, 570, 160, 563, 812, 211, 479, 248, 186, 527, 814, 201, 825, 674],
+  [492, 279, 417, 323, 559, 893, 567, 426, 485, 185, 660, 725, 827, 240, 840, 127, 248, 939, 113, 248],
+  [545, 758, 145, 808, 839, 397, 160, 342, 399, 427, 354, 337, 820, 269, 126, 314, 830, 214, 553, 283],
+  [326, 854, 727, 140, 695, 704, 605, 54, 285, 221, 570, 230, 948, 92, 313, 603, 876, 85, 427, 867],
+  [528, 658, 333, 353, 644, 805, 555, 867, 520, 478, 440, 747, 570, 838, 837, 867, 269, 267, 298, 318],
+  [235, 301, 377, 286, 709, 436, 209, 676, 758, 753, 187, 873, 325, 225, 594, 297, 528, 126, 836, 821],
+  [834, 877, 604, 614, 895, 95, 583, 100, 834, 275, 679, 659, 869, 127, 753, 56, 269, 117, 894, 359],
+  [423, 622, 839, 118, 546, 94, 424, 674, 233, 289, 305, 711, 612, 704, 867, 581, 381, 428, 307, 719],
+  [432, 131, 187, 859, 93, 432, 311, 142, 696, 737, 495, 55, 433, 680, 50, 840, 397, 339, 67, 230],
+  [148, 207, 781, 146, 376, 307, 798, 103, 101, 340, 758, 877, 817, 903, 621, 144, 212, 317, 538, 812],
+  [677, 794, 241, 877, 53, 576, 600, 717, 704, 293, 309, 402, 166, 830, 610, 120, 871, 807, 727, 863],
+  [154, 571, 755, 779, 595, 523, 723, 233, 57, 801, 283, 293, 592, 759, 615, 409, 627, 50, 599, 893],
+  [150, 312, 893, 621, 138, 601, 709, 265, 640, 210, 609, 628, 487, 104, 856, 831, 53, 814, 819, 824],
+  [899, 584, 484, 608, 897, 838, 299, 66, 673, 723, 896, 247, 345, 898, 349, 71, 286, 402, 483, 799],
+  [601, 91, 895, 869, 890, 677, 899, 629, 139, 136, 703, 674, 746, 841, 292, 555, 67, 548, 589, 641],
+  [774, 51, 501, 132, 390, 79, 323, 595, 356, 801, 90, 594, 553, 599, 214, 434, 674, 316, 424, 304],
+  [191, 593, 69, 695, 820, 111, 857, 338, 945, 786, 95, 68, 481, 75, 315, 764, 839, 202, 610, 847],
+  [830, 659, 227, 353, 60, 841, 580, 745, 397, 488, 615, 289, 457, 840, 917, 278, 102, 401, 866, 401],
+  [128, 697, 89, 411, 231, 801, 875, 759, 893, 52, 792, 275, 251, 532, 609, 948, 481, 582, 837, 683],
+  [168, 110, 488, 799, 811, 721, 230, 116, 901, 939, 763, 154, 157, 439, 208, 901, 538, 809, 434, 896],
+  [559, 893, 768, 314, 59, 214, 406, 614, 427, 587, 228, 783, 712, 948, 898, 868, 447, 101, 891, 413],
+  [382, 292, 900, 580, 878, 90, 458, 699, 790, 796, 490, 204, 431, 763, 462, 321, 547, 427, 867, 233],
+  [213, 525, 616, 90, 588, 365, 683, 535, 411, 789, 555, 794, 706, 392, 486, 354, 62, 490, 895, 396],
+  [390, 130, 534, 768, 534, 58, 708, 388, 830, 139, 155, 59, 107, 560, 781, 794, 96, 774, 266, 397],
+  [436, 947, 800, 680, 311, 933, 117, 315, 700, 487, 113, 659, 679, 443, 936, 604, 67, 480, 457, 825],
+  [146, 678, 631, 329, 576, 930, 606, 641, 758, 231, 435, 555, 393, 609, 933, 90, 299, 339, 110, 341],
+  [812, 813, 392, 428, 456, 566, 386, 498, 611, 582, 810, 553, 440, 364, 210, 316, 129, 792, 842, 495],
+  [447, 323, 339, 202, 57, 300, 108, 824, 681, 293, 150, 301, 892, 803, 100, 657, 76, 767, 293, 238],
+  [354, 425, 947, 82, 520, 531, 314, 751, 318, 289, 413, 386, 617, 483, 220, 801, 341, 392, 523, 626],
+  [126, 707, 241, 765, 159, 822, 645, 478, 441, 423, 930, 55, 525, 797, 340, 804, 154, 682, 547, 272],
+  [935, 434, 621, 428, 137, 546, 602, 828, 334, 840, 859, 229, 847, 934, 363, 727, 716, 158, 724, 423],
+  [945, 796, 432, 730, 836, 872, 606, 359, 111, 100, 762, 328, 938, 596, 121, 439, 430, 623, 424, 405],
+  [250, 158, 312, 730, 368, 579, 731, 436, 201, 572, 125, 929, 557, 483, 755, 270, 352, 76, 308, 784],
+  [91, 439, 242, 229, 565, 225, 499, 725, 557, 452, 121, 902, 928, 394, 399, 202, 821, 874, 110, 578],
+  [478, 745, 179, 783, 616, 91, 441, 481, 132, 389, 930, 446, 751, 321, 719, 627, 486, 250, 722, 817],
+  [532, 428, 853, 141, 789, 809, 295, 63, 944, 424, 727, 929, 361, 457, 274, 147, 82, 747, 397, 432],
+  [572, 194, 701, 314, 266, 560, 844, 898, 209, 462, 631, 283, 109, 716, 901, 69, 320, 931, 289, 153],
+  [822, 583, 223, 249, 845, 157, 595, 844, 945, 93, 676, 892, 696, 557, 610, 866, 411, 369, 799, 935],
+  [749, 201, 700, 656, 584, 790, 842, 411, 598, 826, 135, 620, 317, 298, 713, 623, 756, 405, 648, 75],
+  [501, 224, 297, 621, 784, 812, 702, 867, 573, 877, 290, 60, 499, 243, 283, 349, 495, 384, 897, 209],
+  [941, 904, 67, 723, 232, 435, 809, 675, 241, 695, 487, 154, 394, 564, 602, 934, 423, 590, 602, 157],
+  [569, 80, 314, 857, 132, 757, 309, 123, 395, 919, 598, 461, 141, 723, 245, 795, 213, 54, 227, 480],
+  [386, 298, 54, 248, 289, 889, 689, 125, 108, 399, 699, 494, 353, 554, 291, 497, 323, 124, 142, 828],
+  [57, 392, 748, 371, 749, 379, 302, 814, 891, 295, 731, 599, 863, 865, 840, 857, 132, 801, 813, 590],
+  [353, 708, 745, 292, 406, 461, 107, 271, 945, 658, 561, 403, 408, 497, 419, 225, 71, 945, 274, 435],
+  [554, 265, 329, 139, 117, 778, 844, 52, 66, 555, 459, 866, 839, 728, 796, 413, 696, 369, 75, 898],
+  [912, 714, 326, 210, 536, 461, 313, 356, 70, 227, 762, 108, 948, 494, 561, 603, 215, 525, 207, 353],
+  [734, 581, 51, 621, 655, 405, 278, 148, 398, 822, 719, 102, 126, 868, 835, 61, 484, 125, 279, 137],
+  [295, 299, 486, 299, 808, 712, 809, 280, 266, 172, 495, 832, 788, 269, 903, 59, 315, 331, 211, 325],
+  [293, 439, 944, 603, 351, 723, 423, 336, 240, 342, 390, 931, 385, 458, 855, 622, 367, 484, 836, 562],
+  [302, 90, 531, 622, 790, 585, 797, 282, 228, 412, 100, 441, 474, 104, 209, 118, 656, 678, 556, 714],
+  [249, 662, 494, 535, 481, 319, 72, 63, 277, 385, 146, 523, 237, 564, 703, 839, 386, 862, 88, 586],
+  [65, 75, 727, 754, 804, 80, 292, 232, 55, 147, 602, 826, 320, 781, 200, 414, 709, 623, 403, 596],
+  [99, 290, 484, 538, 525, 302, 202, 837, 300, 689, 797, 307, 440, 616, 334, 322, 939, 784, 726, 601],
+  [759, 484, 324, 225, 855, 128, 674, 933, 60, 183, 893, 902, 146, 948, 615, 890, 823, 656, 835, 278],
+  [580, 108, 441, 60, 624, 352, 125, 626, 84, 381, 127, 273, 226, 548, 657, 409, 396, 806, 560, 941],
+  [637, 145, 557, 792, 54, 69, 817, 348, 708, 130, 897, 225, 145, 57, 941, 554, 280, 204, 140, 603],
+  [793, 818, 172, 311, 319, 213, 695, 185, 599, 58, 714, 942, 459, 159, 614, 394, 384, 610, 263, 461],
+  [501, 140, 704, 795, 330, 223, 432, 314, 333, 761, 340, 481, 570, 120, 730, 620, 388, 249, 825, 61],
+  [858, 842, 458, 900, 332, 317, 802, 875, 250, 613, 938, 377, 675, 827, 585, 228, 484, 891, 356, 414],
+  [684, 328, 570, 67, 369, 497, 565, 314, 814, 325, 53, 781, 214, 71, 430, 746, 866, 307, 188, 729],
+  [428, 823, 677, 67, 337, 122, 489, 676, 815, 84, 129, 270, 270, 502, 835, 930, 58, 765, 613, 841],
+  [860, 398, 675, 413, 412, 869, 178, 83, 113, 758, 82, 98, 197, 546, 438, 749, 97, 108, 899, 81],
+  [571, 484, 104, 571, 125, 585, 811, 411, 273, 813, 659, 461, 848, 463, 682, 630, 214, 317, 107, 528],
+  [611, 461, 595, 206, 102, 696, 460, 620, 434, 600, 834, 244, 698, 262, 233, 386, 713, 604, 859, 617],
+  [597, 804, 584, 138, 606, 596, 327, 245, 128, 601, 105, 580, 220, 536, 598, 388, 621, 572, 605, 297],
+  [756, 704, 397, 946, 203, 352, 812, 394, 568, 719, 828, 599, 922, 612, 234, 311, 695, 717, 696, 61],
+  [947, 280, 941, 533, 151, 599, 895, 89, 407, 316, 524, 270, 127, 213, 375, 550, 600, 764, 631, 69],
+  [245, 373, 102, 58, 933, 660, 237, 858, 128, 585, 126, 615, 614, 407, 627, 693, 674, 548, 835, 731],
+  [598, 875, 206, 130, 275, 334, 622, 800, 412, 624, 932, 99, 284, 871, 593, 759, 930, 359, 675, 325],
+  [560, 94, 685, 595, 858, 897, 459, 304, 428, 116, 750, 355, 91, 563, 709, 424, 534, 938, 399, 265],
+  [808, 263, 832, 567, 386, 758, 564, 929, 869, 589, 418, 406, 114, 434, 209, 85, 309, 849, 295, 835],
+  [938, 855, 937, 459, 385, 706, 326, 846, 696, 839, 318, 479, 75, 801, 71, 399, 858, 444, 943, 570],
+  [864, 627, 81, 233, 796, 751, 156, 285, 533, 147, 216, 893, 847, 703, 133, 797, 291, 124, 135, 604],
+  [868, 599, 337, 765, 119, 564, 850, 566, 489, 731, 198, 104, 532, 493, 396, 677, 571, 722, 113, 81],
+  [405, 727, 561, 245, 703, 551, 340, 658, 783, 640, 750, 848, 588, 320, 583, 725, 571, 370, 280, 284],
+  [579, 215, 849, 126, 568, 484, 151, 53, 828, 833, 639, 934, 289, 461, 785, 493, 891, 807, 111, 501],
+  [283, 841, 600, 760, 211, 844, 338, 731, 628, 853, 947, 934, 525, 150, 821, 79, 774, 396, 74, 148],
+  [349, 188, 314, 551, 335, 249, 790, 808, 341, 248, 141, 298, 446, 279, 242, 352, 807, 301, 579, 431],
+  [58, 803, 935, 263, 712, 535, 128, 891, 831, 870, 758, 850, 178, 726, 61, 841, 663, 870, 785, 234],
+  [699, 818, 574, 844, 616, 933, 492, 54, 624, 137, 369, 719, 298, 934, 169, 786, 529, 933, 273, 292],
+  [593, 594, 196, 584, 715, 134, 768, 317, 306, 816, 298, 613, 87, 840, 705, 531, 594, 530, 457, 701],
+  [400, 813, 838, 803, 565, 349, 529, 822, 248, 541, 610, 302, 500, 802, 811, 534, 929, 348, 72, 98],
+  [458, 87, 435, 932, 244, 597, 58, 722, 234, 308, 789, 551, 240, 223, 768, 153, 311, 440, 697, 876],
+  [725, 815, 491, 68, 391, 96, 305, 816, 65, 490, 483, 146, 548, 583, 715, 682, 920, 494, 151, 783],
+  [535, 928, 117, 838, 561, 856, 367, 244, 591, 898, 71, 318, 590, 325, 496, 716, 129, 318, 69, 96],
+  [489, 764, 761, 51, 500, 267, 858, 869, 786, 626, 499, 522, 753, 624, 73, 584, 281, 196, 237, 147],
+  [793, 791, 577, 870, 411, 814, 336, 712, 816, 874, 367, 60, 521, 135, 66, 298, 855, 616, 582, 558],
+  [259, 102, 136, 423, 310, 752, 486, 486, 229, 456, 371, 246, 725, 585, 869, 406, 430, 703, 456, 549],
+  [602, 391, 715, 479, 116, 762, 148, 269, 403, 151, 768, 263, 857, 184, 762, 749, 95, 231, 934, 629],
+  [303, 337, 657, 69, 622, 839, 603, 95, 294, 675, 803, 787, 628, 424, 55, 459, 421, 766, 323, 399]]
+#+end_example
+
+* Day 17
+[[https://adventofcode.com/2020/day/17][Puzzle]], [[file:17_in.txt][Input]]
+
+#+name: day17_eg.in
+#+begin_example :noweb-ref day17_eg.in
+.#.
+..#
+###
+#+end_example
+
+** Part 1
+#+name: day17_p1_impl
+#+begin_src python
+<<utl-pretty-print>>
+
+<<utl-parse-input>>
+
+def ProcessInput():
+    global Grid, LimX, LimY, LimZ
+
+    lines = ParseInput()
+    LimY = range(0, len(lines))
+    LimX = range(0, len(lines[0]))
+    LimZ = range(0, 1)
+    Grid = set()
+
+    for y in LimY:
+        for x in LimX:
+            Grid.add((x,y,0)) if lines[y][x] == "#" else None
+ProcessInput()
+
+def PrintGrid():
+    global Grid, LimX, LimY, LimZ
+
+    # Now print it
+    for z in LimZ:
+        print("z=", z, sep='')
+        for y in LimY:
+            print("  ", end="")
+            for x in LimX:
+                print("#" if (x,y,z) in Grid else ".", end="")
+            print()
+        print()
+
+def GetNumActiveNeighbors(x, y, z):
+    numActiveNeighbors = 0
+    for i in range(x-1,x+2):
+        for j in range(y-1,y+2):
+            for k in range(z-1,z+2):
+                if (i,j,k) == (x,y,z):
+                    continue
+                numActiveNeighbors += 1 if (i,j,k) in Grid else 0
+    return numActiveNeighbors
+
+def DoCycle(numIter=1):
+    global Grid, LimX, LimY, LimZ
+
+    for iter in range(numIter):
+        # We need to look 1 unit farther in each direction and evaluate
+        LimX=range(LimX.start - 1, LimX.stop + 1)
+        LimY=range(LimY.start - 1, LimY.stop + 1)
+        LimZ=range(LimZ.start - 1, LimZ.stop + 1)
+
+        newGrid = set()
+        for z in LimZ:
+            for y in LimY:
+                for x in LimX:
+                    getNumActiveNeighbors = GetNumActiveNeighbors(x, y, z)
+                    # print((x,y,z), ": NumNeighbors=", getNumActiveNeighbors)
+                    if (x,y,z) in Grid and (getNumActiveNeighbors in range(2,4)):
+                        newGrid.add((x,y,z))
+                    if (x,y,z) not in Grid and (getNumActiveNeighbors == 3):
+                        newGrid.add((x,y,z))
+
+        Grid = newGrid
+
+DoCycle(6)
+print("Num active cubes=", len(Grid), sep='')
+#+end_src
+
+#+call: day17_p1_impl(Input=day17_eg.in, InputFromFile=0, Debug=1)
+
+#+RESULTS:
+: Num active cubes=112
+
+#+begin_src python :var Input="17_in.txt" :tangle day17_p1.py
+<<day17_p1_impl>>
+#+end_src
+
+#+RESULTS:
+: Num active cubes=271
+
+** Part 2
+#+name: day17_p2_impl
+#+begin_src python
+<<utl-pretty-print>>
+
+<<utl-parse-input>>
+
+def ProcessInput():
+    global Grid, LimX, LimY, LimZ, LimW
+
+    lines = ParseInput()
+    LimY = range(0, len(lines))
+    LimX = range(0, len(lines[0]))
+    LimZ = range(0, 1)
+    LimW = range(0, 1)
+    Grid = set()
+
+    for y in LimY:
+        for x in LimX:
+            Grid.add((x,y,0,0)) if lines[y][x] == "#" else None
+ProcessInput()
+
+def PrintGrid():
+    global Grid, LimX, LimY, LimZ, LimW
+
+    # Now print it
+    for w in LimW:
+        for z in LimZ:
+            print("w=", w, ", z=", z, sep='')
+            for y in LimY:
+                print("  ", end='')
+                for x in LimX:
+                    print("#" if (x,y,z,w) in Grid else ".", end="")
+                print()
+            print()
+
+def GetNumActiveNeighbors(x, y, z, w):
+    numActiveNeighbors = 0
+    for i in range(x-1,x+2):
+        for j in range(y-1,y+2):
+            for k in range(z-1,z+2):
+                for l in range(w-1,w+2):
+                    if (i,j,k,l) == (x,y,z,w):
+                        continue
+                    numActiveNeighbors += 1 if (i,j,k,l) in Grid else 0
+    return numActiveNeighbors
+
+def DoCycle(numIter=1):
+    global Grid, LimX, LimY, LimZ, LimW
+
+    for iter in range(numIter):
+        # We need to look 1 unit farther in each direction and evaluate
+        LimX=range(LimX.start - 1, LimX.stop + 1)
+        LimY=range(LimY.start - 1, LimY.stop + 1)
+        LimZ=range(LimZ.start - 1, LimZ.stop + 1)
+        LimW=range(LimW.start - 1, LimW.stop + 1)
+
+        newGrid = set()
+        for w in LimW:
+            for z in LimZ:
+                for y in LimY:
+                    for x in LimX:
+                        getNumActiveNeighbors = GetNumActiveNeighbors(x, y, z, w)
+                        # print((x,y,z), ": NumNeighbors=", getNumActiveNeighbors)
+                        if (x,y,z,w) in Grid and (getNumActiveNeighbors in range(2,4)):
+                            newGrid.add((x,y,z,w))
+                        if (x,y,z,w) not in Grid and (getNumActiveNeighbors == 3):
+                            newGrid.add((x,y,z,w))
+
+        Grid = newGrid
+
+DoCycle(6)
+print("Num active cubes=", len(Grid), sep='')
+#+end_src
+
+#+call: day17_p2_impl(Input=day17_eg.in, InputFromFile=0, Debug=1)
+
+#+RESULTS:
+: Num active cubes=848
+
+#+begin_src python :var Input="17_in.txt" :tangle day17_p2.py
+<<day17_p2_impl>>
+#+end_src
+
+#+RESULTS:
+: Num active cubes=2064
+
+* Day 18
+[[https://adventofcode.com/2020/day/18][Puzzle]], [[file:18_in.txt][Input]]
+
+#+begin_src python :noweb-ref day18_utl
+<<utl-parse-input>>
+<<utl-pretty-print>>
+
+def IsNum(token):
+    return type(token) == int
+def IsOp(token):
+    return (token == "+") or (token == "*")
+#+end_src
+
+** Part 1
+
+#+name: day18_p1_impl
+#+begin_src python :tangle day18_p1.py
+<<day18_utl>>
+
+Lines = ParseInput()
+
+def EvalExpr(expr):
+    tokenStack = list()
+    for token in expr.replace(' ', ''):
+        tokenStack.append(int(token) if token.isdigit() else token)
+        EvalTokenStack(tokenStack)
+        print("Token=", token, ", Expr: ", sep='', end='') if Debug else None
+        pp.pprint(tokenStack) if Debug else None
+    return tokenStack.pop()
+
+def EvalTokenStack(tokenStack):
+    if tokenStack[-1] == ")":
+        tokenStack.pop(-3)  # Remove the opening parens
+        tokenStack.pop(-1)  # Remove the closing parens
+    elif (len(tokenStack) >= 3) and IsNum(tokenStack[-1]) and IsOp(tokenStack[-2]) and IsNum(tokenStack[-3]):
+        operand2 = tokenStack.pop(-1)
+        operator = tokenStack.pop(-1)
+        operand1 = tokenStack.pop(-1)
+
+        if operator == "+":
+            tokenStack.append(operand1 + operand2)
+        elif operator == "*":
+            tokenStack.append(operand1 * operand2)
+    else:
+        return
+
+    EvalTokenStack(tokenStack)
+
+exprSum = 0
+for expr in Lines:
+    result = EvalExpr(expr)
+    print(expr, "=", result) if Debug else None
+    exprSum += result
+
+print(exprSum)
+#+end_src
+
+#+name: day18_p1_eg1.in
+#+begin_example
+1 + 2 * 3 + 4 * 5 + 6
+#+end_example
+
+#+call: day18_p1_impl(Input=day18_p1_eg1.in, InputFromFile=0, Debug=0)
+
+#+RESULTS:
+: 1 + 2 * 3 + 4 * 5 + 6 = 71
+
+#+name: day18_p1_eg2.in
+#+begin_example
+1 + (2 * 3) + (4 * (5 + 6))
+#+end_example
+
+#+call: day18_p1_impl(Input=day18_p1_eg2.in, InputFromFile=0, Debug=0)
+
+#+RESULTS:
+: 1 + (2 * 3) + (4 * (5 + 6)) = 51
+
+#+name: day18_p1_eg3.in
+#+begin_example
+2 * 3 + (4 * 5)
+#+end_example
+
+#+call: day18_p1_impl(Input=day18_p1_eg3.in, InputFromFile=0, Debug=0)
+
+#+RESULTS:
+: 2 * 3 + (4 * 5) = 26
+
+#+name: day18_p1_eg4.in
+#+begin_example
+5 + (8 * 3 + 9 + 3 * 4 * 3)
+#+end_example
+
+#+call: day18_p1_impl(Input=day18_p1_eg4.in, InputFromFile=0, Debug=0)
+
+#+RESULTS:
+: 5 + (8 * 3 + 9 + 3 * 4 * 3) = 437
+
+#+name: day18_p1_eg5.in
+#+begin_example
+5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))
+#+end_example
+
+#+call: day18_p1_impl(Input=day18_p1_eg5.in, InputFromFile=0, Debug=0)
+
+#+RESULTS:
+: 5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4)) = 12240
+
+#+name: day18_p1_eg6.in
+#+begin_example
+((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2
+#+end_example
+
+#+call: day18_p1_impl(Input=day18_p1_eg6.in, InputFromFile=0, Debug=0)
+
+#+RESULTS:
+: ((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2 = 13632
+
+#+call: day18_p1_impl(Input="18_in.txt", InputFromFile=1, Debug=0)
+
+#+RESULTS:
+: 4940631886147
+
+** Part 2
+
+#+name: day18_p2_impl
+#+begin_src python :tangle day18_p2.py
+<<day18_utl>>
+
+def EvalTokenStack(tokenStack):
+    # pp.pprint(tokenStack) if Debug else None
+
+    # Evaluate the expression within the parentheses and replace it with the result
+    if tokenStack[-1] == ")":
+        matchingOpenParenIdx = len(tokenStack) - tokenStack[::-1].index("(") - 1
+        parenExprVal = EvalTokenStack(tokenStack[matchingOpenParenIdx+1:-1]).pop()
+        del tokenStack[matchingOpenParenIdx:]
+        tokenStack.append(parenExprVal)
+        return tokenStack
+
+    # Evaluate all + operations recursively
+    if "+" in tokenStack:
+        opIdx = tokenStack.index("+")
+        operand1 = tokenStack[opIdx-1]
+        operand2 = tokenStack[opIdx+1]
+        del tokenStack[opIdx-1:opIdx+2]
+        tokenStack.insert(opIdx-1, operand1 + operand2)
+        return EvalTokenStack(tokenStack)
+    else:
+        # No more additions, evaluate multiplications left-to-right
+        product = 1
+        for i in tokenStack:
+            if i != "*":
+                product *= i
+        return [product]
+
+def EvalExpr(expr):
+    tokenStack = list()
+    for token in expr.replace(' ', ''):
+        tokenStack.append(int(token) if token.isdigit() else token)
+        if token == ")":
+            tokenStack = EvalTokenStack(tokenStack)
+        print("Token=", token, ", Expr: ", sep='', end='') if Debug else None
+        pp.pprint(tokenStack) if Debug else None
+
+    tokenStack = EvalTokenStack(tokenStack)
+    return tokenStack.pop()
+
+Lines = ParseInput()
+exprSum = 0
+for expr in Lines:
+    result = EvalExpr(expr)
+    print(expr, "=", result) if Debug else None
+    exprSum += result
+
+print(exprSum)
+#+end_src
+
+#+name: day18_p2_eg1.in
+#+begin_example
+1 + 2 * 3 + 4 * 5 + 6
+#+end_example
+
+#+call: day18_p2_impl(Input=day18_p2_eg1.in, InputFromFile=0, Debug=0)
+
+#+RESULTS:
+: 231
+
+#+name: day18_p2_eg2.in
+#+begin_example
+1 + (2 * 3) + (4 * (5 + 6))
+#+end_example
+
+#+call: day18_p2_impl(Input=day18_p2_eg2.in, InputFromFile=0, Debug=0)
+
+#+RESULTS:
+: 51
+
+#+name: day18_p2_eg3.in
+#+begin_example
+2 * 3 + (4 * 5)
+#+end_example
+
+#+call: day18_p2_impl(Input=day18_p2_eg3.in, InputFromFile=0, Debug=0)
+
+#+RESULTS:
+: 46
+
+#+name: day18_p2_eg4.in
+#+begin_example
+5 + (8 * 3 + 9 + 3 * 4 * 3)
+#+end_example
+
+#+call: day18_p2_impl(Input=day18_p2_eg4.in, InputFromFile=0, Debug=0)
+
+#+RESULTS:
+: 1445
+
+#+name: day18_p2_eg5.in
+#+begin_example
+5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))
+#+end_example
+
+#+call: day18_p2_impl(Input=day18_p2_eg5.in, InputFromFile=0, Debug=0)
+
+#+RESULTS:
+: 669060
+
+#+name: day18_p2_eg6.in
+#+begin_example
+((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2
+#+end_example
+
+#+call: day18_p2_impl(Input=day18_p2_eg6.in, InputFromFile=0, Debug=0)
+
+#+RESULTS:
+: 23340
+
+#+call: day18_p2_impl(Input="18_in.txt", InputFromFile=1, Debug=0)
+
+#+RESULTS:
+: 283582817678281
+
+* Day 19
+[[https://adventofcode.com/2020/day/19][Puzzle]]
+
+#+begin_src python :noweb-ref day19_utl
+<<utl-parse-input>>
+<<utl-pretty-print>>
+
+Lines = ParseInput()
+
+Rules = []
+Msgs = []
+parseRules = True
+
+def ParseRule(line):
+    ruleNum,ruleStr = line.split(":")
+    ruleNum = int(ruleNum)
+    ruleStr = ruleStr.strip(' "')
+
+    Rules.append([])
+
+    if " " in ruleStr:
+        for rule in ruleStr.split("|"):
+            rule = rule.strip()
+            Rules[ruleNum].append([ int(x) if x.isdigit() else str(x) for x in rule.split(" ") ])
+    else:
+        # Could be a single numeric indirection
+        Rules[ruleNum].append(int(ruleStr) if ruleStr.isdigit() else ruleStr)
+
+for line in Lines:
+    line = line.strip()
+    if len(line) == 0:
+        parseRules = False
+        continue
+
+    if parseRules:
+        ParseRule(line)
+    else:
+        Msgs.append(line)
+
+pp.pprint(Rules)
+pp.pprint(Msgs)
+
+def ExpandRule(ruleNum):
+    for subRuleNum in range(len(Rules[ruleNum])):
+        print("Expand rule ", ruleNum, ".", subRuleNum, sep="")
+        matchArr = Rules[ruleNum][subRuleNum]
+        pp.pprint(matchArr)
+        for matchIdx in range(len(matchArr)):
+            if type(matchArr[matchIdx]) == int:
+                matchArr[matchIdx] = ExpandRule(matchArr[matchIdx])
+        pp.pprint(matchArr)
+        Rules[ruleNum][subRuleNum] = ''.join(matchArr)
+
+    return Rules[ruleNum]
+
+print(ExpandRule(4))
+#+end_src
+
+** Part 1
+
+#+name: day19_p1_impl
+#+begin_src python :tangle day19_p1.py
+<<day19_utl>>
+#+end_src
+
+#+name: day19_p1_eg.in
+#+begin_example
+0: 4 1 5
+1: 2 3 | 3 2
+2: 4 4 | 5 5
+3: 4 5 | 5 4
+4: "a"
+5: "b"
+
+ababbb
+bababa
+abbbab
+aaabbb
+aaaabbb
+#+end_example
+
+#+call: day19_p1_impl(Input=day19_p1_eg.in, InputFromFile=0, Debug=1)
+
+#+RESULTS:
+: [[[4, 1, 5]], [[2, 3], [3, 2]], [[4, 4], [5, 5]], [[4, 5], [5, 4]], ['a'], ['b']]
+: ['ababbb', 'bababa', 'abbbab', 'aaabbb', 'aaaabbb']
+: Expand rule 4.0
+: 'a'
+: 'a'
+: ['a']
